@@ -1421,6 +1421,175 @@ class XRawCameraPlugin : Plugin() {
             ?: android.util.Size(targetW, targetH)
     }
 
+    // ==================== LOG VIDEO RECORDING ====================
+
+    private var logVideoEncoder: com.xraw.camera.video.LogVideoEncoder? = null
+
+    @PluginMethod
+    fun startLogVideoRecording(call: PluginCall) {
+        if (isRecording.get()) {
+            call.reject("Already recording")
+            return
+        }
+
+        val device = cameraDevice ?: run {
+            call.reject("Camera not open")
+            return
+        }
+
+        try {
+            val width = call.getInt("width") ?: 1920
+            val height = call.getInt("height") ?: 1080
+            val fps = call.getInt("fps") ?: 24
+            val logProfile = call.getString("logProfile") ?: "none"
+
+            // Create output file
+            val timestamp = System.currentTimeMillis()
+            val outputDir = File(context.getExternalFilesDir(null), "XRAW")
+            outputDir.mkdirs()
+            val outputFile = File(outputDir, "LOG_$timestamp.mp4")
+
+            // Initialize encoder
+            logVideoEncoder = com.xraw.camera.video.LogVideoEncoder(
+                width = width,
+                height = height,
+                frameRate = fps,
+                logProfile = logProfile,
+                outputPath = outputFile.absolutePath
+            )
+
+            if (!logVideoEncoder!!.initialize()) {
+                call.reject("Failed to initialize log video encoder")
+                logVideoEncoder = null
+                return
+            }
+
+            // Get encoder input surface
+            val encoderSurface = logVideoEncoder!!.getInputSurface()
+            if (encoderSurface == null) {
+                call.reject("Failed to get encoder input surface")
+                logVideoEncoder?.release()
+                logVideoEncoder = null
+                return
+            }
+
+            // Stop current preview
+            closeCaptureSession()
+            closePreviewReader()
+
+            // Create capture session with encoder surface
+            val surfaces = listOf<Surface>(encoderSurface)
+
+            device.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(session: CameraCaptureSession) {
+                    captureSession = session
+                    isRecording.set(true)
+                    frameCounter.set(0)
+                    droppedFrameCount.set(0)
+
+                    val requestBuilder = device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+                    requestBuilder.addTarget(encoderSurface)
+                    applySettingsToRequest(requestBuilder)
+
+                    // Set frame rate
+                    requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                        android.util.Range(fps, fps))
+
+                    session.setRepeatingRequest(requestBuilder.build(), null, cameraHandler)
+
+                    // Start frame processing
+                    startLogVideoFrameProcessing()
+
+                    val result = JSONObject()
+                    result.put("success", true)
+                    result.put("filePath", outputFile.absolutePath)
+                    result.put("width", width)
+                    result.put("height", height)
+                    result.put("fps", fps)
+                    result.put("logProfile", logProfile)
+                    call.resolve(result)
+                }
+
+                override fun onConfigureFailed(session: CameraCaptureSession) {
+                    call.reject("Log video session configuration failed")
+                    logVideoEncoder?.release()
+                    logVideoEncoder = null
+                }
+            }, cameraHandler)
+
+        } catch (e: Exception) {
+            call.reject("Log video recording error: ${e.message}", e)
+            logVideoEncoder?.release()
+            logVideoEncoder = null
+        }
+    }
+
+    @PluginMethod
+    fun stopLogVideoRecording(call: PluginCall) {
+        if (!isRecording.get()) {
+            call.reject("Not recording")
+            return
+        }
+
+        try {
+            // Stop repeating request
+            captureSession?.stopRepeating()
+
+            // Finalize encoder
+            logVideoEncoder?.finalize()
+            
+            val stats = logVideoEncoder?.getStats() ?: emptyMap()
+            logVideoEncoder?.release()
+            logVideoEncoder = null
+
+            // Close raw reader
+            closeRawReader()
+
+            // Restore preview
+            restorePreviewAfterRecording()
+
+            isRecording.set(false)
+
+            val result = JSONObject()
+            result.put("totalFrames", stats["frameCount"] ?: 0)
+            result.put("droppedFrames", stats["droppedFrames"] ?: 0)
+            result.put("measuredFps", stats["measuredFps"] ?: 0.0)
+            call.resolve(result)
+
+        } catch (e: Exception) {
+            call.reject("Failed to stop log video recording: ${e.message}", e)
+        }
+    }
+
+    private fun startLogVideoFrameProcessing() {
+        writerHandler?.post(object : Runnable {
+            override fun run() {
+                if (!isRecording.get()) return
+
+                // Encode frame with current timestamp
+                val timestamp = System.nanoTime()
+                logVideoEncoder?.encodeFrame(timestamp)
+
+                frameCounter.incrementAndGet()
+
+                // Report progress periodically
+                if (frameCounter.get() % 24 == 0) {
+                    val stats = logVideoEncoder?.getStats() ?: emptyMap()
+                    notifyListeners("recordingProgress", JSObject().apply {
+                        put("frameCount", stats["frameCount"] ?: 0)
+                        put("droppedFrames", stats["droppedFrames"] ?: 0)
+                        put("measuredFps", stats["measuredFps"] ?: 0.0)
+                    })
+                }
+
+                // Re-post if still active
+                if (isRecording.get()) {
+                    writerHandler?.postDelayed(this, 1000 / 24) // ~24fps
+                }
+            }
+        })
+    }
+
     override fun handleOnDestroy() {
         stopRecordingInternal()
         try { cameraDevice?.close() } catch (e: Exception) {}

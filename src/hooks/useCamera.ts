@@ -27,15 +27,19 @@ export function useCamera() {
   const [settings, setSettings] = useState<CaptureSettings>({
     resolution: { width: 1920, height: 1080 },
     frameRate: 24,
+    previewFrameRate: 30,
     exposureTime: null,
     iso: null,
     whiteBalance: null,
     focusDistance: null,
     zoom: 1.0,
+    mode: 'raw',
+    logProfile: 'none',
     lutEnabled: false,
     lutPath: null,
     losslessCompression: true,
     showGrid: false,
+    showFocusPeaking: false,
   });
   
   const [recording, setRecording] = useState<RecordingState>({
@@ -47,6 +51,9 @@ export function useCamera() {
     storageAvailable: 0,
     thermalStatus: 'normal',
     filePath: null,
+    measuredPreviewFps: 0,
+    measuredRecordingFps: 0,
+    measuredEncoderFps: 0,
   });
 
   const cleanupFnsRef = useRef<(() => void)[]>([]);
@@ -210,17 +217,30 @@ export function useCamera() {
     if (!nativeAvailable || recording.isRecording) return;
 
     try {
-      const result = await NativeBridge.startRecording({
-        width: settings.resolution.width,
-        height: settings.resolution.height,
-        fps: settings.frameRate,
-        lossless: settings.losslessCompression,
-      });
+      let result;
+      
+      if (settings.mode === 'log_video') {
+        // Log video mode - use MP4 encoder
+        result = await NativeBridge.startLogVideoRecording({
+          width: settings.resolution.width,
+          height: settings.resolution.height,
+          fps: settings.frameRate,
+          logProfile: settings.logProfile,
+        });
+      } else {
+        // RAW mode - use XRAW/XRAWLC
+        result = await NativeBridge.startRecording({
+          width: settings.resolution.width,
+          height: settings.resolution.height,
+          fps: settings.frameRate,
+          lossless: settings.losslessCompression,
+        });
 
-      if (result.sizeMismatch) {
-        addError('SIZE_MISMATCH', 
-          `Actual resolution: ${result.width}×${result.height} (requested ${settings.resolution.width}×${settings.resolution.height})`,
-          'warning', false);
+        if (result.sizeMismatch) {
+          addError('SIZE_MISMATCH', 
+            `Actual resolution: ${result.width}×${result.height} (requested ${settings.resolution.width}×${settings.resolution.height})`,
+            'warning', false);
+        }
       }
 
       setRecording({
@@ -229,9 +249,12 @@ export function useCamera() {
         frameCount: 0,
         droppedFrames: 0,
         currentFileSize: 0,
-        storageAvailable: 0, // Will be updated by diagnostics
+        storageAvailable: 0,
         thermalStatus: 'normal',
         filePath: result.filePath,
+        measuredPreviewFps: 0,
+        measuredRecordingFps: 0,
+        measuredEncoderFps: 0,
       });
     } catch (err: any) {
       addError('RECORDING_FAILED', err.message || 'Failed to start recording', 'error', true);
@@ -242,18 +265,26 @@ export function useCamera() {
     if (!nativeAvailable) return;
 
     try {
-      const result = await NativeBridge.stopRecording();
+      let result;
+      
+      if (settings.mode === 'log_video') {
+        result = await NativeBridge.stopLogVideoRecording();
+      } else {
+        result = await NativeBridge.stopRecording();
+      }
+      
       setRecording(prev => ({
         ...prev,
         isRecording: false,
         startTime: null,
         frameCount: result.totalFrames || prev.frameCount,
         droppedFrames: result.droppedFrames || prev.droppedFrames,
+        measuredRecordingFps: (result as any).measuredFps || prev.measuredRecordingFps,
       }));
     } catch (err: any) {
       addError('STOP_FAILED', err.message || 'Failed to stop recording', 'error', true);
     }
-  }, [nativeAvailable, addError]);
+  }, [nativeAvailable, settings.mode, addError]);
 
   const captureRawStill = useCallback(async () => {
     if (!nativeAvailable) {

@@ -141,6 +141,43 @@ export const NativeBridge = {
     return callNative('stopRecording');
   },
 
+  async startLogVideoRecording(options: {
+    width: number;
+    height: number;
+    fps: number;
+    logProfile: string;
+  }): Promise<{
+    success: boolean;
+    filePath: string;
+    width: number;
+    height: number;
+    fps: number;
+    logProfile: string;
+  }> {
+    if (!isNativeAvailable()) {
+      throw new Error('Native plugin not available');
+    }
+    return callNative('startLogVideoRecording', options);
+  },
+
+  async stopLogVideoRecording(): Promise<{
+    totalFrames: number;
+    droppedFrames: number;
+    measuredFps: number;
+  }> {
+    if (!isNativeAvailable()) {
+      throw new Error('Native plugin not available');
+    }
+    return callNative('stopLogVideoRecording');
+  },
+
+  async setPreviewFrameRate(fps: number): Promise<{ applied: number; requested: number }> {
+    if (!isNativeAvailable()) {
+      throw new Error('Native plugin not available');
+    }
+    return callNative('setPreviewFrameRate', { fps });
+  },
+
   async setExposure(exposureTimeNs: number | null): Promise<{ applied: number | null; requested: number }> {
     if (!isNativeAvailable()) {
       throw new Error('Native plugin not available');

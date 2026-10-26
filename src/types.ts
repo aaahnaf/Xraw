@@ -21,21 +21,52 @@ export interface SensorInfo {
   colorFilterArrangement: number;
 }
 
+export type CaptureMode = 'raw' | 'log_video';
+
+export type LogProfile = 
+  | 'none'
+  | 'slog3'        // Sony S-Log3
+  | 'clog3'        // Canon C-Log3
+  | 'vlog'         // Panasonic V-Log
+  | 'logc'         // ARRI LogC3
+  | 'flog'         // Fujifilm F-Log
+  | 'nlog'         // Nikon N-Log
+  | 'dlog'         // DJI D-Log
+  | 'redlogfilm'   // RED REDlogFilm
+  | 'bmfilm'       // Blackmagic Film
+  | 'slog2';       // Samsung/BMW S-Log2
+
+export interface LogProfileInfo {
+  id: LogProfile;
+  name: string;
+  vendor: string;
+  variant: string;
+  implemented: boolean;
+  approximate: boolean;
+  notes: string;
+}
+
 export interface CaptureSettings {
   resolution: { width: number; height: number };
   frameRate: number;
+  previewFrameRate: number; // Independent preview FPS
   exposureTime: number | null; // nanoseconds, null = auto
   iso: number | null; // null = auto
   whiteBalance: number | null; // Kelvin, null = auto
   focusDistance: number | null; // diopters, null = auto
   zoom: number; // 1.0 = no zoom
+  // Capture mode
+  mode: CaptureMode;
+  // Log video profile (only used in log_video mode)
+  logProfile: LogProfile;
   // Preview LUT (display only, does not affect captured data)
   lutEnabled: boolean;
   lutPath: string | null;
-  // RAW file compression
+  // RAW file compression (only used in raw mode)
   losslessCompression: boolean; // true = .xrawlc, false = .xraw
   // UI preferences
   showGrid: boolean;
+  showFocusPeaking: boolean;
 }
 
 export interface RecordingState {
@@ -47,6 +78,10 @@ export interface RecordingState {
   storageAvailable: number;
   thermalStatus: 'normal' | 'mild' | 'severe' | 'critical';
   filePath: string | null;
+  // Real measured FPS
+  measuredPreviewFps: number;
+  measuredRecordingFps: number;
+  measuredEncoderFps: number;
 }
 
 export interface DiagnosticsResult {
