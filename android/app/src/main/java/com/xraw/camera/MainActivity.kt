@@ -7,13 +7,14 @@ import com.getcapacitor.BridgeActivity
  * XRAW Camera - Main Activity
  * 
  * Extends Capacitor BridgeActivity to load the web frontend.
- * The XRawCamera plugin is auto-registered by Capacitor 5
- * via the @CapacitorPlugin annotation.
+ * Uses a custom layout with native CameraPreviewView for camera imagery
+ * and CapacitorWebView overlay for React UI controls.
  */
 class MainActivity : BridgeActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
         // Capacitor 5 auto-registers plugins annotated with @CapacitorPlugin
     }
     

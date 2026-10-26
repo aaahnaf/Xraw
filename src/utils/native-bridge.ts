@@ -215,8 +215,8 @@ export const NativeBridge = {
     return addNativeListener('frameDropped', callback);
   },
 
-  onPreviewFrame(callback: (data: any) => void): () => void {
-    return addNativeListener('previewFrame', callback);
+  onPreviewStarted(callback: (data: any) => void): () => void {
+    return addNativeListener('previewStarted', callback);
   },
 
   onPreviewRestored(callback: (data: any) => void): () => void {

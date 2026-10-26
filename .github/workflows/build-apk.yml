@@ -69,39 +69,30 @@ jobs:
           cp -r dist/* android/app/src/main/assets/public/
 
       - name: Setup Gradle wrapper
+        working-directory: android
         run: |
-          cd android
-          # Download gradle wrapper jar if missing
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            mkdir -p gradle/wrapper
-            curl -L -o gradle/wrapper/gradle-wrapper.jar \
-              "https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar"
-          fi
-          # Create gradlew script
-          if [ ! -f gradlew ]; then
-            cat > gradlew << 'GRADLEW'
-          #!/bin/sh
-          exec java -jar "$(dirname "$0")/gradle/wrapper/gradle-wrapper.jar" "$@"
-          GRADLEW
-            chmod +x gradlew
-          fi
-
-      - name: Grant execute permission for Gradle wrapper
-        run: |
-          cd android
-          chmod +x gradlew || true
+          # Download Gradle wrapper JAR from official distribution
+          GRADLE_VERSION=8.5
+          mkdir -p gradle/wrapper
+          curl -L -o gradle/wrapper/gradle-wrapper.jar \
+            "https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar"
+          
+          # Make gradlew executable
+          chmod +x gradlew
+          
+          # Verify wrapper files exist
+          ls -la gradle/wrapper/
+          ls -la gradlew
 
       - name: Build debug APK
         if: github.event.inputs.build_type != 'release'
-        run: |
-          cd android
-          ./gradlew assembleDebug --stacktrace --no-daemon
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Build release APK
         if: github.event.inputs.build_type == 'release'
-        run: |
-          cd android
-          ./gradlew assembleRelease --stacktrace --no-daemon
+        working-directory: android
+        run: ./gradlew assembleRelease --stacktrace --no-daemon
 
       - name: Verify APK exists
         run: |
@@ -185,23 +176,14 @@ jobs:
         run: npm run typecheck
 
       - name: Setup Gradle wrapper
+        working-directory: android
         run: |
-          cd android
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            mkdir -p gradle/wrapper
-            curl -L -o gradle/wrapper/gradle-wrapper.jar \
-              "https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar"
-          fi
-          if [ ! -f gradlew ]; then
-            cat > gradlew << 'GRADLEW'
-          #!/bin/sh
-          exec java -jar "$(dirname "$0")/gradle/wrapper/gradle-wrapper.jar" "$@"
-          GRADLEW
-            chmod +x gradlew
-          fi
+          GRADLE_VERSION=8.5
+          mkdir -p gradle/wrapper
+          curl -L -o gradle/wrapper/gradle-wrapper.jar \
+            "https://raw.githubusercontent.com/gradle/gradle/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar"
+          chmod +x gradlew
 
       - name: Run unit tests
-        run: |
-          cd android
-          chmod +x gradlew || true
-          ./gradlew test --stacktrace --no-daemon
+        working-directory: android
+        run: ./gradlew test --stacktrace --no-daemon

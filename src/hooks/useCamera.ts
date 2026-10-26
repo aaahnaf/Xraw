@@ -141,6 +141,10 @@ export function useCamera() {
           addError('FRAME_DROPPED', `Frame dropped: ${data.reason} (total: ${data.totalDropped})`, 'warning', false);
         }));
 
+        cleanups.push(NativeBridge.onPreviewStarted(() => {
+          setPreviewActive(true);
+        }));
+
         cleanups.push(NativeBridge.onPreviewRestored(() => {
           setPreviewActive(true);
         }));

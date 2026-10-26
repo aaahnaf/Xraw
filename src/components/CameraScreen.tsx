@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { CaptureSettings, RecordingState, CameraInfo } from '../types';
 
 interface Props {
@@ -34,8 +34,6 @@ export function CameraScreen({
   const [showShutterSlider, setShowShutterSlider] = useState(false);
   const [showWBSlider, setShowWBSlider] = useState(false);
   const [showFocusSlider, setShowFocusSlider] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animFrameRef = useRef<number>(0);
 
   // Update recording elapsed time
   useEffect(() => {
@@ -57,73 +55,6 @@ export function CameraScreen({
 
     return () => clearInterval(interval);
   }, [recording.isRecording, recording.startTime]);
-
-  // Simulated preview rendering
-  useEffect(() => {
-    if (!previewActive || !canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let time = 0;
-    const render = () => {
-      time += 0.02;
-      
-      // Dark gradient background simulating camera preview
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, '#0a0a0a');
-      gradient.addColorStop(0.5, '#1a1a1a');
-      gradient.addColorStop(1, '#0d0d0d');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Simulated scene elements
-      ctx.globalAlpha = 0.3;
-      for (let i = 0; i < 5; i++) {
-        const x = canvas.width * (0.2 + i * 0.15);
-        const y = canvas.height * (0.3 + Math.sin(time + i) * 0.1);
-        const radius = 30 + Math.sin(time * 0.5 + i * 2) * 10;
-        
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `hsl(${(time * 20 + i * 60) % 360}, 10%, ${15 + i * 3}%)`;
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      
-      // Grid lines
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-      ctx.lineWidth = 0.5;
-      for (let i = 1; i < 3; i++) {
-        ctx.beginPath();
-        ctx.moveTo(canvas.width * i / 3, 0);
-        ctx.lineTo(canvas.width * i / 3, canvas.height);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, canvas.height * i / 3);
-        ctx.lineTo(canvas.width, canvas.height * i / 3);
-        ctx.stroke();
-      }
-      
-      // Center crosshair
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = 0.5;
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-      ctx.beginPath();
-      ctx.moveTo(cx - 15, cy);
-      ctx.lineTo(cx + 15, cy);
-      ctx.moveTo(cx, cy - 15);
-      ctx.lineTo(cx, cy + 15);
-      ctx.stroke();
-      
-      animFrameRef.current = requestAnimationFrame(render);
-    };
-    
-    render();
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, [previewActive]);
 
   const formatExposure = (ns: number | null) => {
     if (ns === null) return 'AUTO';
@@ -151,13 +82,9 @@ export function CameraScreen({
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden select-none">
-      {/* Camera Preview Canvas */}
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
-        width={1920}
-        height={1080}
-      />
+      {/* Native Camera Preview - transparent overlay over native TextureView */}
+      {/* The actual camera imagery is rendered by CameraPreviewView in Android layout */}
+      <div className="absolute inset-0 bg-transparent" />
       
       {/* Native Unavailable Overlay */}
       {!nativeAvailable && (
@@ -166,6 +93,18 @@ export function CameraScreen({
             <div className="text-[10px] font-mono text-yellow-400/80">CAMERA UNAVAILABLE</div>
             <div className="text-[9px] font-mono text-white/40">
               Native plugin required. Install the Android APK.
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Preview not active indicator */}
+      {nativeAvailable && !previewActive && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
+          <div className="text-center space-y-2 px-6">
+            <div className="text-[10px] font-mono text-white/50">PREVIEW NOT ACTIVE</div>
+            <div className="text-[9px] font-mono text-white/30">
+              Camera opened but preview not started
             </div>
           </div>
         </div>

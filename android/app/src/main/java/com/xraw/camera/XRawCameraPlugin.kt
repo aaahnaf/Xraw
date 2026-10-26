@@ -394,10 +394,12 @@ class XRawCameraPlugin : Plugin() {
 
     // ==================== PREVIEW ====================
 
+    private var previewView: CameraPreviewView? = null
+    private var previewSurface: Surface? = null
+
     /**
-     * Start preview using a TextureView surface provided by the frontend.
-     * The frontend creates a <video> or native texture and passes surface info.
-     * For Capacitor, we use a native PreviewView or SurfaceTexture.
+     * Start preview using the native CameraPreviewView (TextureView).
+     * This provides actual camera imagery rendered by the Camera2 API.
      */
     @PluginMethod
     fun startPreview(call: PluginCall) {
@@ -407,34 +409,44 @@ class XRawCameraPlugin : Plugin() {
         }
 
         try {
-            val chars = cameraCharacteristics!!
-            val config = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                ?: run {
-                    call.reject("No stream configuration available")
-                    return
+            // Find the CameraPreviewView in the activity's view hierarchy
+            val activity = this.activity
+            previewView = activity.findViewById(R.id.camera_preview)
+
+            if (previewView == null) {
+                call.reject("CameraPreviewView not found in layout. Ensure the view with id 'camera_preview' exists.")
+                return
+            }
+
+            // Check if surface is already available
+            if (previewView!!.isSurfaceReady()) {
+                setupPreviewSession(device, previewView!!.getPreviewSurface()!!, call)
+            } else {
+                // Wait for surface to become available
+                previewView!!.setOnSurfaceReadyListener { surface ->
+                    setupPreviewSession(device, surface, call)
                 }
+            }
 
-            // Choose preview size - use a reasonable size for display
-            val previewSizes = config.getOutputSizes(android.graphics.ImageFormat.YUV_420_888)
-            val previewSize = chooseOptimalPreviewSize(previewSizes, 1280, 720)
+        } catch (e: CameraAccessException) {
+            call.reject("Camera access error during preview: ${e.message}")
+        } catch (e: Exception) {
+            call.reject("Failed to start preview: ${e.message}", e)
+        }
+    }
 
-            // Create ImageReader for preview frames
-            // Using newInstance for API compatibility (Builder requires API 31+)
-            previewImageReader = ImageReader.newInstance(
-                previewSize.width,
-                previewSize.height,
-                android.graphics.ImageFormat.YUV_420_888,
-                3 // maxImages
-            )
+    private fun setupPreviewSession(device: CameraDevice, surface: Surface, call: PluginCall) {
+        try {
+            previewSurface = surface
 
-            val surfaces = listOf<Surface>(previewImageReader!!.surface)
+            val surfaces = listOf<Surface>(surface)
 
             device.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(session: CameraCaptureSession) {
                     captureSession = session
 
                     val requestBuilder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                    requestBuilder.addTarget(previewImageReader!!.surface)
+                    requestBuilder.addTarget(surface)
                     applySettingsToRequest(requestBuilder)
 
                     // Set preview frame rate
@@ -443,8 +455,10 @@ class XRawCameraPlugin : Plugin() {
 
                     session.setRepeatingRequest(requestBuilder.build(), null, cameraHandler)
 
-                    // Start forwarding preview frames to frontend
-                    startPreviewFrameForwarding()
+                    // Notify frontend that preview is active
+                    notifyListeners("previewStarted", JSObject().apply {
+                        put("success", true)
+                    })
 
                     call.resolve()
                 }
@@ -455,28 +469,10 @@ class XRawCameraPlugin : Plugin() {
             }, cameraHandler)
 
         } catch (e: CameraAccessException) {
-            call.reject("Camera access error during preview: ${e.message}")
+            call.reject("Camera access error: ${e.message}")
         } catch (e: Exception) {
-            call.reject("Failed to start preview: ${e.message}", e)
+            call.reject("Failed to setup preview session: ${e.message}", e)
         }
-    }
-
-    private fun startPreviewFrameForwarding() {
-        previewImageReader?.setOnImageAvailableListener({ reader ->
-            val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
-            try {
-                // Send a lightweight preview event to frontend
-                // We don't send full frame data — just notify that a frame is available
-                // The frontend can use a native SurfaceView for actual display
-                notifyListeners("previewFrame", JSObject().apply {
-                    put("timestamp", System.currentTimeMillis())
-                    put("width", image.width)
-                    put("height", image.height)
-                })
-            } finally {
-                image.close()
-            }
-        }, cameraHandler)
     }
 
     // ==================== RAW STILL CAPTURE ====================
