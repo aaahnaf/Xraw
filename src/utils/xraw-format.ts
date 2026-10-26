@@ -273,16 +273,20 @@ export class XRAWLCEncoder {
       throw new Error(`Compressed bit depth ${bd} doesn't match codec ${this.bitDepth}`);
     }
     
-    const maxVal = (1 << bd) - 1;
     const output = new Uint16Array(w * h);
     
+    // Validate we have enough data for all residuals
+    const expectedSize = 5 + (w * h * 4);
+    if (compressed.length < expectedSize) {
+      throw new Error(`Compressed data truncated: expected ${expectedSize} bytes, got ${compressed.length}`);
+    }
+
     // Unpack residuals as Int32
     let offset = 5;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = y * w + x;
         
-        if (offset + 4 > compressed.length) break;
         const residual = view.getInt32(offset, false);
         offset += 4;
         
@@ -301,7 +305,8 @@ export class XRAWLCEncoder {
           pred = this.medianPredict(hPred, vPred, dPred);
         }
         
-        output[idx] = (pred + residual) & maxVal;
+        // Exact reconstruction - no masking
+        output[idx] = pred + residual;
       }
     }
     

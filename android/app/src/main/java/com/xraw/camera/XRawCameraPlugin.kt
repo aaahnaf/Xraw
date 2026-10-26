@@ -409,9 +409,13 @@ class XRawCameraPlugin : Plugin() {
         }
 
         try {
-            // Find the CameraPreviewView in the activity's view hierarchy
+            // Find the CameraPreviewView - try activity method first, then findViewById
             val activity = this.activity
-            previewView = activity.findViewById(R.id.camera_preview)
+            previewView = if (activity is MainActivity) {
+                activity.getCameraPreviewView()
+            } else {
+                activity.findViewById(R.id.camera_preview)
+            }
 
             if (previewView == null) {
                 call.reject("CameraPreviewView not found in layout. Ensure the view with id 'camera_preview' exists.")

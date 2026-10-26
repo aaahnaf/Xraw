@@ -399,17 +399,20 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
             "Compressed bit depth $bd doesn't match codec $bitDepth"
         }
 
+        // Validate we have enough data for all residuals
+        val expectedSize = 5 + (w * h * 4)
+        require(compressed.size >= expectedSize) {
+            "Compressed data truncated: expected $expectedSize bytes, got ${compressed.size}"
+        }
+
         // Unpack residuals
         val residuals = IntArray(w * h)
         for (i in residuals.indices) {
-            if (buffer.remaining() >= 4) {
-                residuals[i] = buffer.int
-            }
+            residuals[i] = buffer.int
         }
 
         // Reconstruct from residuals
         val output = ShortArray(w * h)
-        val maxVal = (1 shl bd) - 1
 
         for (y in 0 until h) {
             for (x in 0 until w) {
@@ -427,7 +430,9 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
                     else -> medianPredict(hPred, vPred, dPred)
                 }
 
-                val value = (pred + residual) and maxVal // Wrap to valid range
+                // Exact reconstruction - no masking, no clamping
+                // pred + residual must equal original value exactly
+                val value = pred + residual
                 output[idx] = value.toShort()
             }
         }
