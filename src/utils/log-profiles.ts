@@ -39,7 +39,7 @@ export const LOG_PROFILES: Record<LogProfile, LogProfileInfo> = {
     variant: 'S-Log2',
     implemented: true,
     approximate: false,
-    notes: 'Sony S-Log2 per official specification. Older curve, less dynamic range than S-Log3.',
+    notes: 'Sony S-Log2 per official specification. Older curve with less dynamic range than S-Log3. 18% middle gray at ~0.36.',
   },
   clog3: {
     id: 'clog3',

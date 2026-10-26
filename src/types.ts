@@ -34,7 +34,7 @@ export type LogProfile =
   | 'dlog'         // DJI D-Log
   | 'redlogfilm'   // RED REDlogFilm
   | 'bmfilm'       // Blackmagic Film
-  | 'slog2';       // Samsung/BMW S-Log2
+  | 'slog2';       // Sony S-Log2
 
 export interface LogProfileInfo {
   id: LogProfile;
@@ -66,7 +66,6 @@ export interface CaptureSettings {
   losslessCompression: boolean; // true = .xrawlc, false = .xraw
   // UI preferences
   showGrid: boolean;
-  showFocusPeaking: boolean;
 }
 
 export interface RecordingState {

@@ -39,7 +39,6 @@ export function useCamera() {
     lutPath: null,
     losslessCompression: true,
     showGrid: false,
-    showFocusPeaking: false,
   });
   
   const [recording, setRecording] = useState<RecordingState>({
