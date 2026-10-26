@@ -34,6 +34,8 @@ export function useCamera() {
     zoom: 1.0,
     lutEnabled: false,
     lutPath: null,
+    losslessCompression: true,
+    showGrid: false,
   });
   
   const [recording, setRecording] = useState<RecordingState>({
@@ -212,7 +214,7 @@ export function useCamera() {
         width: settings.resolution.width,
         height: settings.resolution.height,
         fps: settings.frameRate,
-        lossless: true, // Always use XRAWLC lossless
+        lossless: settings.losslessCompression,
       });
 
       if (result.sizeMismatch) {

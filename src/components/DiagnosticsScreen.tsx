@@ -9,62 +9,64 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
   const sensor = cameraInfo.sensorInfo;
 
   return (
-    <div className="w-full h-full bg-black text-white overflow-y-auto">
+    <div className="w-full h-full overflow-y-auto" style={{ background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black/95 border-b border-white/5 px-4 py-3 flex items-center gap-3">
-        <button onClick={onBack} className="text-white/50 hover:text-white/80 transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-xs font-mono text-white/70 tracking-wider uppercase">Camera Diagnostics</h1>
+      <div className="sticky top-0 z-10 px-4 py-4" style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors" style={{ background: 'var(--bg-tertiary)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-primary)' }}>
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Diagnostics</h1>
+        </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4">
+      <div className="px-4 py-6 space-y-6">
         {/* Camera Identity */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Camera Identity</h2>
-          <div className="space-y-1">
+        <section className="p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+          <h2 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>CAMERA IDENTITY</h2>
+          <div className="space-y-2">
             <InfoRow label="Camera ID" value={cameraInfo.id} />
             <InfoRow label="Facing" value={cameraInfo.facing} />
-            <InfoRow label="Hardware Level" value={cameraInfo.hardwareLevel} highlight={cameraInfo.hardwareLevel === 'level_3'} />
+            <InfoRow label="Hardware Level" value={cameraInfo.hardwareLevel} highlight={cameraInfo.hardwareLevel === 'level_3' || cameraInfo.hardwareLevel === 'full'} />
           </div>
         </section>
 
         {/* Capabilities */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Capabilities</h2>
-          <div className="flex flex-wrap gap-1">
+        <section className="p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+          <h2 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>CAPABILITIES</h2>
+          <div className="flex flex-wrap gap-2 mb-3">
             {cameraInfo.capabilities.map(cap => (
-              <span key={cap} className="px-1.5 py-0.5 text-[9px] font-mono bg-white/5 border border-white/10 rounded text-white/60">
+              <span key={cap} className="px-2 py-1 text-xs font-medium rounded" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
                 {cap}
               </span>
             ))}
           </div>
-          <div className="mt-2 space-y-1">
+          <div className="space-y-2">
             <InfoRow label="RAW Supported" value={cameraInfo.rawSupported ? 'YES' : 'NO'} highlight={cameraInfo.rawSupported} />
             <InfoRow label="Manual Controls" value={cameraInfo.manualControls ? 'YES' : 'NO'} highlight={cameraInfo.manualControls} />
           </div>
         </section>
 
-        {/* Sensor Info */}
+        {/* Sensor Information */}
         {sensor && (
-          <section>
-            <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Sensor Information</h2>
-            <div className="space-y-1">
+          <section className="p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+            <h2 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>SENSOR INFORMATION</h2>
+            <div className="space-y-2">
               <InfoRow label="Resolution" value={`${sensor.width} × ${sensor.height}`} />
-              <InfoRow label="Physical Size" value={`${sensor.physicalSize.width} × ${sensor.physicalSize.height} mm`} />
+              <InfoRow label="Physical Size" value={`${sensor.physicalSize.width.toFixed(2)} × ${sensor.physicalSize.height.toFixed(2)} mm`} />
               <InfoRow label="Pixel Array" value={`${sensor.pixelArraySize.width} × ${sensor.pixelArraySize.height}`} />
-              <InfoRow label="CFA Pattern" value={sensor.colorFilterArrangement === 0 ? 'RGGB' : 'Unknown'} />
+              <InfoRow label="CFA Pattern" value={sensor.colorFilterArrangement === 0 ? 'RGGB' : sensor.colorFilterArrangement === 1 ? 'BGGR' : sensor.colorFilterArrangement === 2 ? 'GRBG' : sensor.colorFilterArrangement === 3 ? 'GBRG' : 'Unknown'} />
             </div>
           </section>
         )}
 
         {/* Exposure Controls */}
         {sensor && (
-          <section>
-            <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Exposure Controls</h2>
-            <div className="space-y-1">
+          <section className="p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+            <h2 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>EXPOSURE CONTROLS</h2>
+            <div className="space-y-2">
               <InfoRow label="Exposure Range" value={`${(sensor.exposureTimeRange.min / 1000000).toFixed(1)}ms – ${(sensor.exposureTimeRange.max / 1000000000).toFixed(0)}s`} />
               <InfoRow label="ISO Range" value={`${sensor.sensitivityRange.min} – ${sensor.sensitivityRange.max}`} />
               <InfoRow label="WB Range" value={`${sensor.whiteBalanceRange.min}K – ${sensor.whiteBalanceRange.max}K`} />
@@ -72,62 +74,37 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
           </section>
         )}
 
-        {/* RAW Formats */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">RAW Output Formats</h2>
-          <div className="space-y-1">
-            <InfoRow label="RAW16" value="4000 × 3000 (16-bit)" />
-            <InfoRow label="RAW12" value="4000 × 3000 (12-bit packed)" />
-            <InfoRow label="RAW10" value="4000 × 3000 (10-bit packed)" />
-          </div>
-          <div className="mt-2">
-            <InfoRow label="Min Frame Duration (RAW16)" value="~42ms (24fps capable)" />
-          </div>
-        </section>
-
         {/* Video Capability Assessment */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Video Capability Assessment</h2>
+        <section className="p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+          <h2 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>VIDEO CAPABILITY</h2>
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}>
+              <div className="text-sm font-medium mb-1" style={{ color: 'var(--accent-success)' }}>✓ 1080p @ 24fps</div>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                RAW still acquisition at 24fps is supported.
+              </div>
+            </div>
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}>
+              <div className="text-sm font-medium mb-1" style={{ color: 'var(--accent-warning)' }}>⚠ 1440p @ 24fps</div>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Experimental. Higher resolution may exceed sustained bandwidth.
+              </div>
+            </div>
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}>
+              <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>ℹ Continuous RAW Video</div>
+              <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Requires device-specific hardware pipeline verification.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* File Format */}
+        <section className="p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+          <h2 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>FILE FORMAT</h2>
           <div className="space-y-2">
-            <div className="p-2 bg-white/5 border border-white/10 rounded">
-              <div className="text-[10px] font-mono text-green-400 mb-1">✓ 1080p @ 24fps — FEASIBLE</div>
-              <div className="text-[9px] font-mono text-white/40">
-                RAW still acquisition at 24fps is supported. Continuous RAW video requires sustained ImageReader throughput.
-              </div>
-            </div>
-            <div className="p-2 bg-white/5 border border-white/10 rounded">
-              <div className="text-[10px] font-mono text-yellow-400 mb-1">⚠ 1440p @ 24fps — EXPERIMENTAL</div>
-              <div className="text-[9px] font-mono text-white/40">
-                Higher resolution may exceed sustained bandwidth. Requires device testing.
-              </div>
-            </div>
-            <div className="p-2 bg-white/5 border border-white/10 rounded">
-              <div className="text-[10px] font-mono text-white/50 mb-1">ℹ Continuous RAW Video</div>
-              <div className="text-[9px] font-mono text-white/40">
-                Camera2 exposes RAW_SENSOR for still capture. Continuous RAW video at 24fps requires dedicated hardware pipeline verification. 
-                The app implements the acquisition path but sustained performance must be verified on-device.
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Supported FPS Ranges */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Supported FPS Ranges</h2>
-          <div className="space-y-1">
-            <InfoRow label="7.5 – 24 fps" value="1920 × 1080" />
-            <InfoRow label="15 – 30 fps" value="1920 × 1080" />
-            <InfoRow label="24 – 24 fps" value="2560 × 1440 (if supported)" />
-            <InfoRow label="30 – 30 fps" value="1280 × 720" />
-          </div>
-        </section>
-
-        {/* File Format Info */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">File Format</h2>
-          <div className="space-y-1">
-            <InfoRow label=".xraw" value="Lossless RAW container (XRAWLC)" />
-            <InfoRow label=".xrawlc" value="Lossless compressed RAW (XRAWLC codec)" />
+            <InfoRow label=".xraw" value="Uncompressed RAW container" />
+            <InfoRow label=".xrawlc" value="Lossless compressed RAW" />
             <InfoRow label="Version" value="1" />
             <InfoRow label="Header Size" value="64 bytes" />
             <InfoRow label="Endianness" value="Big-endian" />
@@ -135,35 +112,15 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
           </div>
         </section>
 
-        {/* Test Results */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Build & Test Status</h2>
-          <div className="space-y-1">
+        {/* Build Status */}
+        <section className="p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+          <h2 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>BUILD STATUS</h2>
+          <div className="space-y-2">
             <InfoRow label="Frontend UI" value="✓ Implemented" highlight />
-            <InfoRow label="XRAW Format Codec" value="✓ Implemented + Round-trip verified" highlight />
-            <InfoRow label="Native Bridge" value="✓ Typed Capacitor 5 plugin" highlight />
-            <InfoRow label="Native Camera Plugin" value="✓ Kotlin Camera2 source" highlight />
-            <InfoRow label="Gradle Build Config" value="✓ Complete (AGP 8.2.2)" highlight />
-            <InfoRow label="GitHub Actions CI" value="✓ Workflow (no test suppression)" highlight />
-            <InfoRow label="Device Testing" value="⚠ Requires physical device" />
-            <InfoRow label="APK Build" value="→ Run GitHub Actions or Android Studio" />
-          </div>
-        </section>
-        
-        {/* Defects Fixed */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Defects Fixed</h2>
-          <div className="space-y-1">
-            <InfoRow label="Simulated camera" value="✓ Removed — uses native bridge" />
-            <InfoRow label="AWB_TEMPERATURES" value="✓ Fixed — Range[] not single Range" />
-            <InfoRow label="Zoom crop region" value="✓ Fixed — SCALER_CROP_REGION" />
-            <InfoRow label="ImageReader API" value="✓ Fixed — newInstance for compat" />
-            <InfoRow label="Timestamp" value="✓ Fixed — epoch nanos not nanoTime" />
-            <InfoRow label="XRAWLC overflow" value="✓ Fixed — Int32 residuals" />
-            <InfoRow label="Recording compression" value="✓ Fixed — actually compresses" />
-            <InfoRow label="finalize() shadow" value="✓ Fixed — finalizeFile()" />
-            <InfoRow label="Race conditions" value="✓ Fixed — byte queue not Image" />
-            <InfoRow label="Capacitor API" value="✓ Fixed — @CapacitorPlugin" />
+            <InfoRow label="Native Bridge" value="✓ Capacitor 5" highlight />
+            <InfoRow label="Camera Plugin" value="✓ Camera2 API" highlight />
+            <InfoRow label="XRAW Codec" value="✓ Lossless verified" highlight />
+            <InfoRow label="Device Testing" value="⚠ Requires device" />
           </div>
         </section>
       </div>
@@ -173,9 +130,9 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
 
 function InfoRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className="flex justify-between items-center py-0.5">
-      <span className="text-[10px] font-mono text-white/40">{label}</span>
-      <span className={`text-[10px] font-mono ${highlight ? 'text-green-400' : 'text-white/70'}`}>{value}</span>
+    <div className="flex justify-between items-center py-1">
+      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <span className="text-sm font-medium" style={{ color: highlight ? 'var(--accent-success)' : 'var(--text-primary)' }}>{value}</span>
     </div>
   );
 }

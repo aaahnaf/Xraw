@@ -29,8 +29,13 @@ export interface CaptureSettings {
   whiteBalance: number | null; // Kelvin, null = auto
   focusDistance: number | null; // diopters, null = auto
   zoom: number; // 1.0 = no zoom
+  // Preview LUT (display only, does not affect captured data)
   lutEnabled: boolean;
   lutPath: string | null;
+  // RAW file compression
+  losslessCompression: boolean; // true = .xrawlc, false = .xraw
+  // UI preferences
+  showGrid: boolean;
 }
 
 export interface RecordingState {

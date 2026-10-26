@@ -30,10 +30,7 @@ export function CameraScreen({
 }: Props) {
   const [showControls, setShowControls] = useState(true);
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
-  const [showIsoSlider, setShowIsoSlider] = useState(false);
-  const [showShutterSlider, setShowShutterSlider] = useState(false);
-  const [showWBSlider, setShowWBSlider] = useState(false);
-  const [showFocusSlider, setShowFocusSlider] = useState(false);
+  const [activeControl, setActiveControl] = useState<string | null>(null);
 
   // Update recording elapsed time
   useEffect(() => {
@@ -59,7 +56,7 @@ export function CameraScreen({
   const formatExposure = (ns: number | null) => {
     if (ns === null) return 'AUTO';
     if (ns >= 1000000000) return `${(ns / 1000000000).toFixed(1)}s`;
-    if (ns >= 1000000) return `${(ns / 1000000).toFixed(0)}ms`;
+    if (ns >= 1000000) return `${(ns / 1000000).toFixed(1)}ms`;
     if (ns >= 1000) return `${(ns / 1000).toFixed(0)}µs`;
     return `${ns}ns`;
   };
@@ -81,17 +78,29 @@ export function CameraScreen({
   };
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden select-none">
-      {/* Native Camera Preview - transparent overlay over native TextureView */}
-      {/* The actual camera imagery is rendered by CameraPreviewView in Android layout */}
+    <div className="relative w-full h-full overflow-hidden select-none" style={{ background: 'var(--bg-primary)' }}>
+      {/* Native Camera Preview - transparent overlay */}
       <div className="absolute inset-0 bg-transparent" />
+      
+      {/* Grid Overlay */}
+      {settings.showGrid && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="w-full h-full grid grid-cols-3 grid-rows-3">
+            {[...Array(9)].map((_, i) => (
+              <div key={i} className="border border-white/10" />
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Native Unavailable Overlay */}
       {!nativeAvailable && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
-          <div className="text-center space-y-2 px-6">
-            <div className="text-[10px] font-mono text-yellow-400/80">CAMERA UNAVAILABLE</div>
-            <div className="text-[9px] font-mono text-white/40">
+        <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+          <div className="text-center space-y-4 px-8">
+            <div className="text-lg font-medium" style={{ color: 'var(--accent-warning)' }}>
+              Camera Unavailable
+            </div>
+            <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               Native plugin required. Install the Android APK.
             </div>
           </div>
@@ -100,132 +109,148 @@ export function CameraScreen({
       
       {/* Preview not active indicator */}
       {nativeAvailable && !previewActive && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60">
-          <div className="text-center space-y-2 px-6">
-            <div className="text-[10px] font-mono text-white/50">PREVIEW NOT ACTIVE</div>
-            <div className="text-[9px] font-mono text-white/30">
-              Camera opened but preview not started
+        <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ background: 'rgba(10, 10, 10, 0.8)' }}>
+          <div className="text-center space-y-3 px-8">
+            <div className="text-base" style={{ color: 'var(--text-secondary)' }}>
+              Preview Not Active
             </div>
           </div>
         </div>
       )}
-      
-      {/* Toggle Controls */}
-      <button
-        onClick={() => setShowControls(!showControls)}
-        className="absolute top-2 right-2 z-50 w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors"
-        title="Toggle controls"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
-        </svg>
-      </button>
 
-      {showControls && (
+      {/* Controls Layer */}
+      {showControls && nativeAvailable && (
         <>
-          {/* Top Bar */}
-          <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/60 to-transparent">
-            <div className="flex items-center gap-3">
-              {/* Resolution & FPS */}
-              <span className="text-[10px] font-mono text-white/70 tracking-wider">
-                {settings.resolution.width}×{settings.resolution.height} @ {settings.frameRate}fps
-              </span>
-              
-              {/* Recording Indicator */}
-              {recording.isRecording && (
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span className="text-[10px] font-mono text-red-400 tracking-wider">REC</span>
-                  <span className="text-[10px] font-mono text-red-400/80">{elapsedTime}</span>
+          {/* Top Status Bar */}
+          <div className="absolute top-0 left-0 right-0 z-40 px-4 py-3" style={{ background: 'linear-gradient(to bottom, rgba(10, 10, 10, 0.9) 0%, transparent 100%)' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {/* Resolution & FPS */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {settings.resolution.width}×{settings.resolution.height}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {settings.frameRate}fps
+                  </span>
                 </div>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* Storage */}
-              <span className="text-[10px] font-mono text-white/50">
-                {formatStorage(recording.storageAvailable)} free
-              </span>
+                
+                {/* Recording Indicator */}
+                {recording.isRecording && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full recording-indicator" style={{ background: 'var(--accent-recording)' }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--accent-recording)' }}>
+                      REC
+                    </span>
+                    <span className="text-sm font-mono" style={{ color: 'var(--accent-recording)' }}>
+                      {elapsedTime}
+                    </span>
+                  </div>
+                )}
+              </div>
               
-              {/* Thermal Warning */}
-              {recording.thermalStatus !== 'normal' && (
-                <span className={`text-[10px] font-mono ${
-                  recording.thermalStatus === 'mild' ? 'text-yellow-400' : 
-                  recording.thermalStatus === 'severe' ? 'text-orange-400' : 'text-red-400'
-                }`}>
-                  ⚠ THERMAL
-                </span>
-              )}
-              
-              {/* Menu */}
-              <button onClick={onOpenSettings} className="text-white/50 hover:text-white/80">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <line x1="4" y1="6" x2="20" y2="6" />
-                  <line x1="4" y1="12" x2="20" y2="12" />
-                  <line x1="4" y1="18" x2="20" y2="18" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Storage */}
+                {recording.storageAvailable > 0 && (
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {formatStorage(recording.storageAvailable)}
+                  </span>
+                )}
+                
+                {/* Thermal Warning */}
+                {recording.thermalStatus !== 'normal' && (
+                  <span className="text-xs font-medium" style={{ 
+                    color: recording.thermalStatus === 'mild' ? 'var(--accent-warning)' : 
+                           recording.thermalStatus === 'severe' ? 'var(--accent-recording)' : 'var(--accent-recording)'
+                  }}>
+                    ⚠
+                  </span>
+                )}
+                
+                {/* Settings Button */}
+                <button 
+                  onClick={onOpenSettings}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+                  style={{ background: 'var(--bg-tertiary)' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-primary)' }}>
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Left Side Controls */}
-          <div className="absolute left-2 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2">
+          {/* Exposure Control Strip */}
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2">
             {/* ISO */}
             <button
-              onClick={() => { setShowIsoSlider(!showIsoSlider); setShowShutterSlider(false); setShowWBSlider(false); setShowFocusSlider(false); }}
-              className={`px-2 py-1 rounded text-[10px] font-mono border transition-colors ${
-                settings.iso !== null 
-                  ? 'border-white/30 text-white/90 bg-white/5' 
-                  : 'border-white/10 text-white/50 hover:border-white/20'
-              }`}
+              onClick={() => setActiveControl(activeControl === 'iso' ? null : 'iso')}
+              className="px-3 py-2 rounded-lg transition-all"
+              style={{ 
+                background: settings.iso !== null ? 'var(--bg-elevated)' : 'var(--bg-tertiary)',
+                border: `1px solid ${settings.iso !== null ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
             >
-              ISO {formatISO(settings.iso)}
+              <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>ISO</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatISO(settings.iso)}
+              </div>
             </button>
             
             {/* Shutter */}
             <button
-              onClick={() => { setShowShutterSlider(!showShutterSlider); setShowIsoSlider(false); setShowWBSlider(false); setShowFocusSlider(false); }}
-              className={`px-2 py-1 rounded text-[10px] font-mono border transition-colors ${
-                settings.exposureTime !== null 
-                  ? 'border-white/30 text-white/90 bg-white/5' 
-                  : 'border-white/10 text-white/50 hover:border-white/20'
-              }`}
+              onClick={() => setActiveControl(activeControl === 'shutter' ? null : 'shutter')}
+              className="px-3 py-2 rounded-lg transition-all"
+              style={{ 
+                background: settings.exposureTime !== null ? 'var(--bg-elevated)' : 'var(--bg-tertiary)',
+                border: `1px solid ${settings.exposureTime !== null ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
             >
-              ⏱ {formatExposure(settings.exposureTime)}
+              <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>SHUTTER</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatExposure(settings.exposureTime)}
+              </div>
             </button>
             
             {/* White Balance */}
             <button
-              onClick={() => { setShowWBSlider(!showWBSlider); setShowIsoSlider(false); setShowShutterSlider(false); setShowFocusSlider(false); }}
-              className={`px-2 py-1 rounded text-[10px] font-mono border transition-colors ${
-                settings.whiteBalance !== null 
-                  ? 'border-white/30 text-white/90 bg-white/5' 
-                  : 'border-white/10 text-white/50 hover:border-white/20'
-              }`}
+              onClick={() => setActiveControl(activeControl === 'wb' ? null : 'wb')}
+              className="px-3 py-2 rounded-lg transition-all"
+              style={{ 
+                background: settings.whiteBalance !== null ? 'var(--bg-elevated)' : 'var(--bg-tertiary)',
+                border: `1px solid ${settings.whiteBalance !== null ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
             >
-              WB {formatWB(settings.whiteBalance)}
+              <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>WB</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatWB(settings.whiteBalance)}
+              </div>
             </button>
             
             {/* Focus */}
             <button
-              onClick={() => { setShowFocusSlider(!showFocusSlider); setShowIsoSlider(false); setShowShutterSlider(false); setShowWBSlider(false); }}
-              className={`px-2 py-1 rounded text-[10px] font-mono border transition-colors ${
-                settings.focusDistance !== null 
-                  ? 'border-white/30 text-white/90 bg-white/5' 
-                  : 'border-white/10 text-white/50 hover:border-white/20'
-              }`}
+              onClick={() => setActiveControl(activeControl === 'focus' ? null : 'focus')}
+              className="px-3 py-2 rounded-lg transition-all"
+              style={{ 
+                background: settings.focusDistance !== null ? 'var(--bg-elevated)' : 'var(--bg-tertiary)',
+                border: `1px solid ${settings.focusDistance !== null ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
             >
-              ◎ {settings.focusDistance !== null ? `${settings.focusDistance.toFixed(1)}m` : 'AF'}
+              <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>FOCUS</div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                {settings.focusDistance !== null ? `${settings.focusDistance.toFixed(1)}m` : 'AF'}
+              </div>
             </button>
           </div>
 
-          {/* Sliders Panel */}
-          {(showIsoSlider || showShutterSlider || showWBSlider || showFocusSlider) && (
-            <div className="absolute left-14 top-1/2 -translate-y-1/2 z-40 bg-black/80 border border-white/10 rounded px-3 py-2 w-48">
-              {showIsoSlider && (
-                <div>
-                  <label className="text-[9px] text-white/50 font-mono block mb-1">ISO / SENSITIVITY</label>
+          {/* Control Panel */}
+          {activeControl && (
+            <div className="absolute left-20 top-1/2 -translate-y-1/2 z-40 p-4 rounded-xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-medium)' }}>
+              {activeControl === 'iso' && (
+                <div className="w-48">
+                  <label className="text-xs font-medium block mb-2" style={{ color: 'var(--text-secondary)' }}>ISO / SENSITIVITY</label>
                   <input
                     type="range"
                     min="50"
@@ -233,18 +258,24 @@ export function CameraScreen({
                     step="50"
                     value={settings.iso ?? 400}
                     onChange={(e) => onUpdateSetting('iso', Number(e.target.value))}
-                    className="w-full h-1 accent-white"
+                    className="w-full mb-2"
                   />
-                  <div className="flex justify-between text-[8px] text-white/30 font-mono mt-0.5">
-                    <span>50</span>
-                    <button onClick={() => onUpdateSetting('iso', null)} className="text-white/50 hover:text-white/80">AUTO</button>
-                    <span>3200</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>50</span>
+                    <button 
+                      onClick={() => onUpdateSetting('iso', null)}
+                      className="text-xs font-medium px-2 py-1 rounded"
+                      style={{ color: 'var(--accent-active)', background: 'var(--bg-tertiary)' }}
+                    >
+                      AUTO
+                    </button>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>3200</span>
                   </div>
                 </div>
               )}
-              {showShutterSlider && (
-                <div>
-                  <label className="text-[9px] text-white/50 font-mono block mb-1">EXPOSURE TIME</label>
+              {activeControl === 'shutter' && (
+                <div className="w-48">
+                  <label className="text-xs font-medium block mb-2" style={{ color: 'var(--text-secondary)' }}>EXPOSURE TIME</label>
                   <input
                     type="range"
                     min="100"
@@ -252,18 +283,24 @@ export function CameraScreen({
                     step="100"
                     value={settings.exposureTime ?? 41666666}
                     onChange={(e) => onUpdateSetting('exposureTime', Number(e.target.value))}
-                    className="w-full h-1 accent-white"
+                    className="w-full mb-2"
                   />
-                  <div className="flex justify-between text-[8px] text-white/30 font-mono mt-0.5">
-                    <span>1/10000</span>
-                    <button onClick={() => onUpdateSetting('exposureTime', null)} className="text-white/50 hover:text-white/80">AUTO</button>
-                    <span>1/10</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Fast</span>
+                    <button 
+                      onClick={() => onUpdateSetting('exposureTime', null)}
+                      className="text-xs font-medium px-2 py-1 rounded"
+                      style={{ color: 'var(--accent-active)', background: 'var(--bg-tertiary)' }}
+                    >
+                      AUTO
+                    </button>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Slow</span>
                   </div>
                 </div>
               )}
-              {showWBSlider && (
-                <div>
-                  <label className="text-[9px] text-white/50 font-mono block mb-1">WHITE BALANCE (K)</label>
+              {activeControl === 'wb' && (
+                <div className="w-48">
+                  <label className="text-xs font-medium block mb-2" style={{ color: 'var(--text-secondary)' }}>WHITE BALANCE</label>
                   <input
                     type="range"
                     min="2000"
@@ -271,18 +308,24 @@ export function CameraScreen({
                     step="100"
                     value={settings.whiteBalance ?? 5500}
                     onChange={(e) => onUpdateSetting('whiteBalance', Number(e.target.value))}
-                    className="w-full h-1 accent-white"
+                    className="w-full mb-2"
                   />
-                  <div className="flex justify-between text-[8px] text-white/30 font-mono mt-0.5">
-                    <span>2000K</span>
-                    <button onClick={() => onUpdateSetting('whiteBalance', null)} className="text-white/50 hover:text-white/80">AUTO</button>
-                    <span>8000K</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>2000K</span>
+                    <button 
+                      onClick={() => onUpdateSetting('whiteBalance', null)}
+                      className="text-xs font-medium px-2 py-1 rounded"
+                      style={{ color: 'var(--accent-active)', background: 'var(--bg-tertiary)' }}
+                    >
+                      AUTO
+                    </button>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>8000K</span>
                   </div>
                 </div>
               )}
-              {showFocusSlider && (
-                <div>
-                  <label className="text-[9px] text-white/50 font-mono block mb-1">FOCUS DISTANCE</label>
+              {activeControl === 'focus' && (
+                <div className="w-48">
+                  <label className="text-xs font-medium block mb-2" style={{ color: 'var(--text-secondary)' }}>FOCUS DISTANCE</label>
                   <input
                     type="range"
                     min="0"
@@ -290,12 +333,18 @@ export function CameraScreen({
                     step="0.1"
                     value={settings.focusDistance ?? 1.0}
                     onChange={(e) => onUpdateSetting('focusDistance', Number(e.target.value))}
-                    className="w-full h-1 accent-white"
+                    className="w-full mb-2"
                   />
-                  <div className="flex justify-between text-[8px] text-white/30 font-mono mt-0.5">
-                    <span>∞</span>
-                    <button onClick={() => onUpdateSetting('focusDistance', null)} className="text-white/50 hover:text-white/80">AF</button>
-                    <span>0.1m</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>∞</span>
+                    <button 
+                      onClick={() => onUpdateSetting('focusDistance', null)}
+                      className="text-xs font-medium px-2 py-1 rounded"
+                      style={{ color: 'var(--accent-active)', background: 'var(--bg-tertiary)' }}
+                    >
+                      AF
+                    </button>
+                    <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>0.1m</span>
                   </div>
                 </div>
               )}
@@ -303,116 +352,148 @@ export function CameraScreen({
           )}
 
           {/* Right Side Controls */}
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2 items-end">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-3">
             {/* Zoom */}
-            <div className="flex flex-col items-center gap-1">
+            <div className="flex flex-col items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--bg-tertiary)' }}>
               <button
                 onClick={() => onUpdateSetting('zoom', Math.min(settings.zoom + 0.5, 8.0))}
-                className="w-6 h-6 flex items-center justify-center text-[10px] font-mono text-white/50 hover:text-white/80 border border-white/10 rounded"
+                className="w-8 h-8 flex items-center justify-center rounded transition-colors"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
               >
                 +
               </button>
-              <span className="text-[9px] font-mono text-white/50">{settings.zoom.toFixed(1)}×</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                {settings.zoom.toFixed(1)}×
+              </span>
               <button
                 onClick={() => onUpdateSetting('zoom', Math.max(settings.zoom - 0.5, 1.0))}
-                className="w-6 h-6 flex items-center justify-center text-[10px] font-mono text-white/50 hover:text-white/80 border border-white/10 rounded"
+                className="w-8 h-8 flex items-center justify-center rounded transition-colors"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
               >
                 −
               </button>
             </div>
             
-            {/* LUT Toggle */}
+            {/* Grid Toggle */}
             <button
-              onClick={() => onUpdateSetting('lutEnabled', !settings.lutEnabled)}
-              className={`px-2 py-1 rounded text-[9px] font-mono border transition-colors ${
-                settings.lutEnabled 
-                  ? 'border-cyan-500/40 text-cyan-400 bg-cyan-500/5' 
-                  : 'border-white/10 text-white/40 hover:border-white/20'
-              }`}
+              onClick={() => onUpdateSetting('showGrid', !settings.showGrid)}
+              className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
+              style={{ 
+                background: settings.showGrid ? 'var(--bg-elevated)' : 'var(--bg-tertiary)',
+                border: `1px solid ${settings.showGrid ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
             >
-              LUT {settings.lutEnabled ? 'ON' : 'OFF'}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-primary)' }}>
+                <rect x="3" y="3" width="18" height="18" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <line x1="15" y1="3" x2="15" y2="21" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="3" y1="15" x2="21" y2="15" />
+              </svg>
             </button>
             
             {/* Diagnostics */}
             <button
               onClick={onOpenDiagnostics}
-              className="px-2 py-1 rounded text-[9px] font-mono border border-white/10 text-white/40 hover:border-white/20 hover:text-white/60 transition-colors"
+              className="w-10 h-10 flex items-center justify-center rounded-lg transition-colors"
+              style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)' }}
             >
-              DIAG
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-primary)' }}>
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
             </button>
           </div>
 
-          {/* Bottom Bar */}
-          <div className="absolute bottom-0 left-0 right-0 z-40 flex items-end justify-between px-4 pb-4 bg-gradient-to-t from-black/60 to-transparent">
-            {/* RAW Still Button */}
-            <button
-              onClick={nativeAvailable ? onCaptureStill : undefined}
-              disabled={!nativeAvailable}
-              className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors active:scale-95 ${
-                nativeAvailable 
-                  ? 'border-white/30 hover:border-white/60' 
-                  : 'border-white/10 opacity-40 cursor-not-allowed'
-              }`}
-              title={nativeAvailable ? "Capture RAW Still" : "Requires native build"}
-            >
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                <span className="text-[8px] font-mono text-white/70">RAW</span>
+          {/* Bottom Shooting Dock */}
+          <div className="absolute bottom-0 left-0 right-0 z-40 px-6 pb-6 pt-4" style={{ background: 'linear-gradient(to top, rgba(10, 10, 10, 0.95) 0%, transparent 100%)' }}>
+            <div className="flex items-center justify-between">
+              {/* RAW Still Button */}
+              <button
+                onClick={onCaptureStill}
+                className="w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95"
+                style={{ 
+                  background: 'var(--bg-tertiary)',
+                  border: '2px solid var(--border-medium)'
+                }}
+              >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
+                  <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>RAW</span>
+                </div>
+              </button>
+              
+              {/* Record Button */}
+              <button
+                onClick={recording.isRecording ? onStopRecording : onStartRecording}
+                className="w-20 h-20 rounded-full flex items-center justify-center transition-all active:scale-95"
+                style={{ 
+                  background: recording.isRecording ? 'var(--accent-recording)' : 'var(--bg-tertiary)',
+                  border: `3px solid ${recording.isRecording ? 'var(--accent-recording)' : 'var(--text-primary)'}`
+                }}
+              >
+                {recording.isRecording ? (
+                  <div className="w-8 h-8 rounded-sm" style={{ background: 'var(--bg-primary)' }} />
+                ) : (
+                  <div className="w-14 h-14 rounded-full" style={{ background: 'var(--accent-recording)' }} />
+                )}
+              </button>
+              
+              {/* Format Indicator */}
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-tertiary)', border: '2px solid var(--border-subtle)' }}>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  {settings.losslessCompression ? 'LC' : 'RAW'}
+                </span>
               </div>
-            </button>
-            
-            {/* Recording Button */}
-            <button
-              onClick={nativeAvailable ? (recording.isRecording ? onStopRecording : onStartRecording) : undefined}
-              disabled={!nativeAvailable}
-              className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all active:scale-95 ${
-                !nativeAvailable 
-                  ? 'border-white/10 opacity-40 cursor-not-allowed'
-                  : recording.isRecording 
-                    ? 'border-red-500 hover:border-red-400' 
-                    : 'border-white/40 hover:border-white/70'
-              }`}
-              title={nativeAvailable ? (recording.isRecording ? 'Stop Recording' : 'Start Recording') : 'Requires native build'}
-            >
-              {recording.isRecording ? (
-                <div className="w-6 h-6 rounded-sm bg-red-500" />
-              ) : (
-                <div className={`w-10 h-10 rounded-full ${nativeAvailable ? 'bg-red-500/80' : 'bg-white/10'}`} />
-              )}
-            </button>
-            
-            {/* Frame Counter / Status */}
-            <div className="text-right">
-              {recording.isRecording && (
-                <div className="text-[9px] font-mono text-white/50">
-                  <div>{recording.frameCount} frames</div>
-                  {recording.droppedFrames > 0 && (
-                    <div className="text-red-400">{recording.droppedFrames} dropped</div>
-                  )}
-                  <div>{formatStorage(recording.currentFileSize)}</div>
-                </div>
-              )}
-              {!recording.isRecording && (
-                <div className="text-[9px] font-mono text-white/40">
-                  <div>READY</div>
-                  <div>{settings.resolution.width}×{settings.resolution.height}</div>
-                </div>
-              )}
             </div>
-          </div>
-
-          {/* Status Bar - Bottom Left */}
-          <div className="absolute bottom-16 left-3 z-40">
-            <div className="text-[8px] font-mono text-white/30 space-y-0.5">
-              <div>CAM {cameraInfo.id} | {cameraInfo.hardwareLevel.toUpperCase()}</div>
-              <div>{cameraInfo.rawSupported ? 'RAW ✓' : 'RAW ✗'} | {cameraInfo.manualControls ? 'MANUAL ✓' : 'MANUAL ✗'}</div>
-            </div>
+            
+            {/* Recording Stats */}
+            {recording.isRecording && (
+              <div className="mt-3 flex justify-center gap-6">
+                <div className="text-center">
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Frames</div>
+                  <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{recording.frameCount}</div>
+                </div>
+                {recording.droppedFrames > 0 && (
+                  <div className="text-center">
+                    <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Dropped</div>
+                    <div className="text-sm font-medium" style={{ color: 'var(--accent-recording)' }}>{recording.droppedFrames}</div>
+                  </div>
+                )}
+                <div className="text-center">
+                  <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Size</div>
+                  <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{formatStorage(recording.currentFileSize)}</div>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
+
+      {/* Toggle Controls Button */}
+      <button
+        onClick={() => setShowControls(!showControls)}
+        className="absolute top-3 right-3 z-50 w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+        style={{ background: 'var(--bg-tertiary)' }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-primary)' }}>
+          {showControls ? (
+            <>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </>
+          ) : (
+            <>
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a10.07 10.07 0 0 1 1.67-2.68" />
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a10.07 10.07 0 0 1-2.18 3.66" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </>
+          )}
+        </svg>
+      </button>
       
       {/* Recording border indicator */}
       {recording.isRecording && (
-        <div className="absolute inset-0 z-30 pointer-events-none border border-red-500/20 rounded-sm" />
+        <div className="absolute inset-0 z-30 pointer-events-none border-2 rounded-sm" style={{ borderColor: 'var(--accent-recording)', opacity: 0.3 }} />
       )}
     </div>
   );

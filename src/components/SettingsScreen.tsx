@@ -8,149 +8,188 @@ interface Props {
 
 export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
   return (
-    <div className="w-full h-full bg-black text-white overflow-y-auto">
+    <div className="w-full h-full overflow-y-auto" style={{ background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black/95 border-b border-white/5 px-4 py-3 flex items-center gap-3">
-        <button onClick={onBack} className="text-white/50 hover:text-white/80 transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-xs font-mono text-white/70 tracking-wider uppercase">Settings</h1>
+      <div className="sticky top-0 z-10 px-4 py-4" style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors" style={{ background: 'var(--bg-tertiary)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-primary)' }}>
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Settings</h1>
+        </div>
       </div>
 
-      <div className="px-4 py-4 space-y-5">
-        {/* Resolution */}
+      <div className="px-4 py-6 space-y-8">
+        {/* Capture Section */}
         <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Resolution</h2>
-          <div className="space-y-1">
-            {[
-              { w: 1920, h: 1080, label: '1920 × 1080 (Full HD)' },
-              { w: 2560, h: 1440, label: '2560 × 1440 (QHD) — EXPERIMENTAL' },
-            ].map(res => (
-              <button
-                key={`${res.w}x${res.h}`}
-                onClick={() => onUpdateSetting('resolution', { width: res.w, height: res.h })}
-                className={`w-full text-left px-3 py-2 rounded text-[10px] font-mono border transition-colors ${
-                  settings.resolution.width === res.w && settings.resolution.height === res.h
-                    ? 'border-white/30 text-white/90 bg-white/5'
-                    : 'border-white/5 text-white/40 hover:border-white/15'
-                }`}
-              >
-                {res.label}
-              </button>
-            ))}
+          <h2 className="text-sm font-semibold mb-4 px-1" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>CAPTURE</h2>
+          
+          {/* Resolution */}
+          <div className="mb-4">
+            <label className="text-sm font-medium block mb-2" style={{ color: 'var(--text-primary)' }}>Resolution</label>
+            <div className="space-y-2">
+              {[
+                { w: 1920, h: 1080, label: '1920 × 1080', desc: 'Full HD' },
+                { w: 2560, h: 1440, label: '2560 × 1440', desc: 'QHD (Experimental)' },
+              ].map(res => (
+                <button
+                  key={`${res.w}x${res.h}`}
+                  onClick={() => onUpdateSetting('resolution', { width: res.w, height: res.h })}
+                  className="w-full text-left px-4 py-3 rounded-lg transition-all"
+                  style={{
+                    background: settings.resolution.width === res.w && settings.resolution.height === res.h ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                    border: `1px solid ${settings.resolution.width === res.w && settings.resolution.height === res.h ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+                  }}
+                >
+                  <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{res.label}</div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{res.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
-        </section>
 
-        {/* Frame Rate */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Frame Rate</h2>
-          <div className="flex gap-2">
-            {[24, 25, 30].map(fps => (
-              <button
-                key={fps}
-                onClick={() => onUpdateSetting('frameRate', fps)}
-                className={`flex-1 py-2 rounded text-[10px] font-mono border transition-colors ${
-                  settings.frameRate === fps
-                    ? 'border-white/30 text-white/90 bg-white/5'
-                    : 'border-white/5 text-white/40 hover:border-white/15'
-                }`}
-              >
-                {fps} fps
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* RAW Format */}
-        <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">RAW Format</h2>
-          <div className="space-y-1">
+          {/* Frame Rate */}
+          <div>
+            <label className="text-sm font-medium block mb-2" style={{ color: 'var(--text-primary)' }}>Frame Rate</label>
             <div className="flex gap-2">
-              <button
-                onClick={() => onUpdateSetting('lutEnabled', false)}
-                className={`flex-1 py-2 rounded text-[10px] font-mono border transition-colors ${
-                  !settings.lutEnabled ? 'border-white/30 text-white/90 bg-white/5' : 'border-white/5 text-white/40'
-                }`}
-              >
-                .xraw (uncompressed)
-              </button>
-              <button
-                onClick={() => onUpdateSetting('lutEnabled', true)}
-                className={`flex-1 py-2 rounded text-[10px] font-mono border transition-colors ${
-                  settings.lutEnabled ? 'border-white/30 text-white/90 bg-white/5' : 'border-white/5 text-white/40'
-                }`}
-              >
-                .xrawlc (lossless)
-              </button>
+              {[24, 25, 30].map(fps => (
+                <button
+                  key={fps}
+                  onClick={() => onUpdateSetting('frameRate', fps)}
+                  className="flex-1 py-3 rounded-lg text-sm font-medium transition-all"
+                  style={{
+                    background: settings.frameRate === fps ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                    border: `1px solid ${settings.frameRate === fps ? 'var(--accent-active)' : 'var(--border-subtle)'}`,
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  {fps} fps
+                </button>
+              ))}
             </div>
-            <p className="text-[9px] font-mono text-white/30 mt-1">
-              .xrawlc uses XRAWLC lossless compression — exact sample reconstruction guaranteed.
-            </p>
           </div>
         </section>
 
-        {/* Preview LUT */}
+        {/* RAW Format Section */}
         <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Preview LUT</h2>
+          <h2 className="text-sm font-semibold mb-4 px-1" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>RAW FORMAT</h2>
+          
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono text-white/50">Enable Preview LUT</span>
-              <button
-                onClick={() => onUpdateSetting('lutEnabled', !settings.lutEnabled)}
-                className={`w-8 h-4 rounded-full transition-colors ${settings.lutEnabled ? 'bg-cyan-500/50' : 'bg-white/10'}`}
-              >
-                <div className={`w-3 h-3 rounded-full transition-transform ${settings.lutEnabled ? 'translate-x-4 bg-cyan-400' : 'translate-x-0.5 bg-white/40'}`} />
-              </button>
-            </div>
-            <p className="text-[9px] font-mono text-white/30">
-              Preview-only. Does not affect captured RAW data. Import .cube LUT files.
-            </p>
-            <button className="px-3 py-1.5 text-[9px] font-mono border border-white/10 text-white/40 rounded hover:border-white/20 transition-colors">
-              Import .cube LUT
+            <button
+              onClick={() => onUpdateSetting('losslessCompression', false)}
+              className="w-full text-left px-4 py-3 rounded-lg transition-all"
+              style={{
+                background: !settings.losslessCompression ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                border: `1px solid ${!settings.losslessCompression ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
+            >
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>.xraw (Uncompressed)</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Larger files, faster write</div>
+            </button>
+            
+            <button
+              onClick={() => onUpdateSetting('losslessCompression', true)}
+              className="w-full text-left px-4 py-3 rounded-lg transition-all"
+              style={{
+                background: settings.losslessCompression ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                border: `1px solid ${settings.losslessCompression ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
+            >
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>.xrawlc (Lossless)</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Compressed, exact reconstruction</div>
             </button>
           </div>
         </section>
 
-        {/* Storage */}
+        {/* Preview & Composition Section */}
         <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Storage</h2>
-          <div className="space-y-1">
-            <div className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/40">Output Directory</span>
-              <span className="text-white/60">/XRAW/</span>
+          <h2 className="text-sm font-semibold mb-4 px-1" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>PREVIEW & COMPOSITION</h2>
+          
+          {/* Grid Overlay */}
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
+            <div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Grid Overlay</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Rule of thirds grid</div>
             </div>
-            <div className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/40">Recovery Interval</span>
-              <span className="text-white/60">Every 48 frames</span>
+            <button
+              onClick={() => onUpdateSetting('showGrid', !settings.showGrid)}
+              className="w-12 h-6 rounded-full transition-colors relative"
+              style={{ background: settings.showGrid ? 'var(--accent-active)' : 'var(--bg-tertiary)' }}
+            >
+              <div 
+                className="w-5 h-5 rounded-full absolute top-0.5 transition-transform"
+                style={{ 
+                  background: 'var(--text-primary)',
+                  transform: settings.showGrid ? 'translateX(26px)' : 'translateX(2px)'
+                }}
+              />
+            </button>
+          </div>
+
+          {/* Preview LUT */}
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg mt-2" style={{ background: 'var(--bg-secondary)' }}>
+            <div>
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Preview LUT</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Display-only color grading</div>
             </div>
-            <div className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/40">Auto-finalize</span>
-              <span className="text-green-400">Enabled</span>
+            <button
+              onClick={() => onUpdateSetting('lutEnabled', !settings.lutEnabled)}
+              className="w-12 h-6 rounded-full transition-colors relative"
+              style={{ background: settings.lutEnabled ? 'var(--accent-active)' : 'var(--bg-tertiary)' }}
+            >
+              <div 
+                className="w-5 h-5 rounded-full absolute top-0.5 transition-transform"
+                style={{ 
+                  background: 'var(--text-primary)',
+                  transform: settings.lutEnabled ? 'translateX(26px)' : 'translateX(2px)'
+                }}
+              />
+            </button>
+          </div>
+        </section>
+
+        {/* Storage Section */}
+        <section>
+          <h2 className="text-sm font-semibold mb-4 px-1" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>STORAGE</h2>
+          
+          <div className="px-4 py-3 rounded-lg space-y-3" style={{ background: 'var(--bg-secondary)' }}>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Output Directory</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>/XRAW/</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Recovery Interval</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>48 frames</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Auto-finalize</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--accent-success)' }}>Enabled</span>
             </div>
           </div>
         </section>
 
-        {/* Performance */}
+        {/* Recording & Performance Section */}
         <section>
-          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Performance</h2>
-          <div className="space-y-1">
-            <div className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/40">Frame Queue Size</span>
-              <span className="text-white/60">4 frames (bounded)</span>
+          <h2 className="text-sm font-semibold mb-4 px-1" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>RECORDING & PERFORMANCE</h2>
+          
+          <div className="px-4 py-3 rounded-lg space-y-3" style={{ background: 'var(--bg-secondary)' }}>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Frame Queue</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>4 frames</span>
             </div>
-            <div className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/40">Overload Policy</span>
-              <span className="text-white/60">Drop oldest + report</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Overload Policy</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Drop oldest</span>
             </div>
-            <div className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/40">Background Threads</span>
-              <span className="text-white/60">2 (acquire + write)</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Background Threads</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>2</span>
             </div>
-            <div className="flex justify-between text-[10px] font-mono">
-              <span className="text-white/40">Thermal Monitoring</span>
-              <span className="text-green-400">Active</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Thermal Monitoring</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--accent-success)' }}>Active</span>
             </div>
           </div>
         </section>
