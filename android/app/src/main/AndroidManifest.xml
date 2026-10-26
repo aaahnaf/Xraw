@@ -60,12 +60,5 @@
             android:exported="false"
             android:foregroundServiceType="camera" />
 
-        <!-- Capacitor bridge -->
-        <provider
-            android:name="com.getcapacitor.CapacitorProvider"
-            android:authorities="${applicationId}.capacitor"
-            android:exported="false"
-            tools:node="merge" />
-
     </application>
 </manifest>

@@ -1,290 +1,198 @@
 # XRAW Camera
 
-A minimalist, performance-focused Android camera application designed around manual control, genuine RAW image acquisition, and experimental RAW video capture.
-
-## Overview
-
-XRAW Camera provides direct sensor access through Android Camera2 API, manual exposure controls, and lossless RAW file output in custom `.xraw` / `.xrawlc` formats compatible with the planned XRAW Studio desktop application.
+A minimalist, performance-focused Android camera application for genuine RAW image acquisition.
 
 **Target Device:** Xiaomi Redmi Note 12 Pro 5G (MediaTek Dimensity 1080, Sony IMX766)
+
+## What This Is
+
+XRAW Camera is an Android application that provides:
+- Direct sensor access through Camera2 API
+- Manual exposure controls (ISO, shutter, white balance, focus)
+- Genuine RAW still capture where hardware supports it
+- Lossless RAW file output in custom `.xraw` / `.xrawlc` formats
+- Experimental continuous RAW recording (hardware-dependent)
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│              React Frontend (Vite)           │
-│  TypeScript • Tailwind CSS • Capacitor Web   │
-├─────────────────────────────────────────────┤
-│           Capacitor Bridge Layer             │
-│     Typed Plugin Calls • Events • Errors     │
-├─────────────────────────────────────────────┤
-│          XRawCameraPlugin (Kotlin)           │
-│   Camera2 API • ImageReader • Threading      │
-├─────────────────────────────────────────────┤
-│           XRawWriter / XRawLCCodec           │
-│    File I/O • Lossless Compression • CRC32   │
-├─────────────────────────────────────────────┤
-│            Android Camera HAL                │
-│         Sensor • ISP • Hardware Pipeline     │
-└─────────────────────────────────────────────┘
+React Frontend (Vite/TypeScript)
+         ↕ Capacitor 5 Bridge
+XRawCameraPlugin (Kotlin/Camera2)
+         ↕
+XRawWriter / XRawLCCodec (Native I/O)
+         ↕
+Android Camera HAL
 ```
 
 ## Project Structure
 
 ```
-xraw-camera/
 ├── src/                          # React frontend
-│   ├── App.tsx                   # Main application
+│   ├── App.tsx                   # Main app with native detection
 │   ├── components/
-│   │   ├── CameraScreen.tsx      # Camera viewfinder + controls
-│   │   ├── DiagnosticsScreen.tsx # Camera capability diagnostics
+│   │   ├── CameraScreen.tsx      # Viewfinder + controls
+│   │   ├── DiagnosticsScreen.tsx # Camera capability display
 │   │   ├── SettingsScreen.tsx    # Capture settings
-│   │   └── AboutScreen.tsx       # App information
+│   │   └── AboutScreen.tsx       # App info
 │   ├── hooks/
-│   │   └── useCamera.ts          # Camera state management
-│   ├── types.ts                  # TypeScript type definitions
+│   │   └── useCamera.ts          # Native bridge state management
+│   ├── types.ts                  # TypeScript definitions
 │   └── utils/
-│       └── xraw-format.ts        # XRAW format codec (JS reference)
+│       ├── native-bridge.ts      # Typed Capacitor plugin bridge
+│       └── xraw-format.ts        # XRAW codec reference (TS)
 ├── android/                      # Android native project
-│   ├── app/
-│   │   ├── src/main/
-│   │   │   ├── AndroidManifest.xml
-│   │   │   ├── java/com/xraw/camera/
-│   │   │   │   ├── MainActivity.kt
-│   │   │   │   ├── XRawCameraPlugin.kt
-│   │   │   │   ├── format/
-│   │   │   │   │   └── XRawWriter.kt
-│   │   │   │   └── service/
-│   │   │   │       └── RecordingService.kt
-│   │   │   └── res/
-│   │   └── src/test/             # Unit tests
-│   ├── xraw-camera-plugin/       # Plugin library module
-│   ├── build.gradle
+│   ├── app/src/main/java/com/xraw/camera/
+│   │   ├── MainActivity.kt       # Capacitor bridge activity
+│   │   ├── XRawCameraPlugin.kt   # Camera2 plugin (Capacitor 5)
+│   │   ├── format/
+│   │   │   └── XRawWriter.kt     # File writer + XRAWLC codec
+│   │   └── service/
+│   │       └── RecordingService.kt
+│   ├── app/src/test/             # Unit tests
+│   ├── build.gradle              # AGP 8.2.2, Kotlin 1.9.22
 │   └── settings.gradle
 ├── .github/workflows/
 │   └── build-apk.yml             # CI/CD APK build
-└── README.md
+├── docs/
+│   └── XRAW_FORMAT_SPEC.md       # Complete format specification
+└── capacitor.config.ts           # Capacitor 5 configuration
 ```
-
-## Prerequisites
-
-### For Frontend Development
-- Node.js 18+ and npm
-- No additional tools needed for UI development
-
-### For Android APK Build
-
-**Option A: GitHub Actions (Recommended - No Local Setup)**
-- A GitHub account
-- Push this repository to GitHub
-- The APK builds automatically in the cloud
-
-**Option B: Local Build (Android Studio)**
-- Android Studio Hedgehog (2023.1.1) or later
-- JDK 17
-- Android SDK 34
-- Android Build Tools 34.0.0
-- A physical Android device or emulator (API 28+)
 
 ## Building
 
-### Frontend Only (Web Preview)
+### Prerequisites
+- Node.js 20+ and npm
+- For APK: Android Studio Hedgehog+ OR GitHub account
 
+### Frontend (Web Preview)
 ```bash
 npm install
 npm run dev      # Development server
 npm run build    # Production build
+npm run typecheck # TypeScript validation
 ```
 
-### Android APK via GitHub Actions
+### Android APK via GitHub Actions (Recommended)
 
 1. Push this repository to GitHub
 2. Go to **Actions** tab → **Build XRAW Camera APK**
-3. Click **Run workflow** (or it runs automatically on push)
-4. Wait for the build to complete (~5-10 minutes)
-5. Download the APK from the workflow artifacts:
-   - Click the completed workflow run
-   - Scroll to **Artifacts** section
-   - Download **XRAW-Camera-Debug-APK**
+3. Click **Run workflow**
+4. Wait for build (~5-10 minutes)
+5. Download APK from workflow **Artifacts** section
 
 ### Android APK via Android Studio (Local)
 
-1. Open Android Studio
-2. File → Open → Select the `android/` directory
-3. Wait for Gradle sync to complete
-4. Build → Build Bundle(s) / APK(s) → Build APK(s)
-5. APK location: `android/app/build/outputs/apk/debug/app-debug.apk`
+1. Open `android/` directory in Android Studio
+2. Wait for Gradle sync
+3. Build → Build APK(s)
+4. APK: `android/app/build/outputs/apk/debug/app-debug.apk`
 
-### Installing the APK
-
+### Installing
 ```bash
-# Via ADB (device connected via USB)
 adb install app-debug.apk
-
-# Or transfer the APK to the device and install from file manager
 ```
 
 ## Features
 
-### Implemented
-
-- ✅ Camera enumeration and capability discovery
-- ✅ Camera2 API integration (Kotlin)
-- ✅ RAW still image capture
-- ✅ Manual exposure controls (ISO, shutter speed)
-- ✅ Manual white balance (Kelvin)
-- ✅ Manual focus distance
-- ✅ Digital zoom (crop region)
-- ✅ Preview LUT support (preview-only, not baked into RAW)
+### Implemented & Compiled
+- ✅ Camera enumeration and capability discovery (Camera2)
+- ✅ Native Capacitor 5 plugin bridge (typed)
+- ✅ RAW still image capture (where hardware supports)
+- ✅ Manual controls: ISO, shutter, WB (Kelvin), focus, zoom
 - ✅ XRAW file format (.xraw uncompressed)
 - ✅ XRAWLC lossless compression (.xrawlc)
-- ✅ CRC32 integrity verification
+- ✅ CRC32 integrity verification on all frames and header
 - ✅ Recovery index checkpoints
 - ✅ Bounded frame queue with overload reporting
-- ✅ Thermal monitoring
+- ✅ Thermal monitoring (PowerManager API 29+)
 - ✅ Storage space monitoring
 - ✅ Foreground recording service
-- ✅ Comprehensive diagnostics screen
-- ✅ GitHub Actions CI/CD pipeline
-- ✅ Unit tests for file format codec
+- ✅ File validation utility (XRawReader)
+- ✅ GitHub Actions CI/CD (no test suppression)
+- ✅ Unit tests for format codec and round-trips
 
 ### Compiled but Not Device-Tested
-
 - ⚠️ Continuous RAW video recording at 24fps
 - ⚠️ 1440p experimental mode
 - ⚠️ .cube LUT file import
 - ⚠️ Real-time frame drop reporting accuracy
 
 ### Hardware-Dependent (Requires Device Verification)
-
 - 🔍 Actual supported RAW output sizes
 - 🔍 Maximum sustainable frame rate
 - 🔍 Thermal behavior during sustained recording
 - 🔍 Exact exposure time and ISO ranges
 
-### Not Supported
+### Not Supported (By Design)
+- ❌ Genuine continuous RAW video on all devices (hardware limitation)
+- ❌ Compatibility with Adobe DNG / Camera Raw (custom format)
+- ❌ Lossy compression in .xrawlc (by design — lossless only)
 
-- ❌ Genuine RAW video on all devices (hardware limitation)
-- ❌ Compatibility with Adobe Camera Raw / DaVinci Resolve (proprietary formats)
-- ❌ Lossy compression in .xrawlc (by design — XRAWLC is lossless only)
+## Defects Fixed in This Revision
 
-## XRAW File Format Specification
+| Issue | Fix |
+|-------|-----|
+| Simulated camera behavior | Removed — uses real native bridge |
+| `CONTROL_AWB_AVAILABLE_TEMPERATURES` type | Fixed — `Range<Integer>[]` not single `Range` |
+| `CaptureRequest.SENSOR_INFO_ACTIVE_ARRAY_SIZE` | Fixed — uses `SCALER_CROP_REGION` |
+| `ImageReader.Builder` API 31+ only | Fixed — uses `newInstance()` for compat |
+| `System.nanoTime()` ≠ epoch nanos | Fixed — uses `currentTimeMillis * 1_000_000` |
+| XRAWLC Short overflow for 16-bit | Fixed — uses `IntArray`/`Int32` residuals |
+| Recording writes uncompressed when XRAWLC selected | Fixed — actually compresses |
+| `finalize()` shadows `Object.finalize()` | Fixed — renamed to `finalizeFile()` |
+| Image objects in queue race conditions | Fixed — queue stores byte arrays |
+| `@NativePlugin` (Capacitor 3) | Fixed — `@CapacitorPlugin` (Capacitor 5) |
+| `|| true` hiding test failures in CI | Fixed — tests must pass |
+| Timestamp semantics mismatch | Fixed — documented as epoch nanos |
 
-### Header (64 bytes, Big-Endian)
+## XRAW File Format
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 4 | magic | 0x58524157 ("XRAW") |
-| 4 | 2 | version | Format version (currently 1) |
-| 6 | 2 | headerSize | Total header size (64) |
-| 8 | 4 | imageWidth | Frame width in pixels |
-| 12 | 4 | imageHeight | Frame height in pixels |
-| 16 | 1 | sampleFormat | 0=Bayer, 1=Mono |
-| 17 | 1 | bitDepth | Bits per sample (10/12/14/16) |
-| 18 | 1 | packingLayout | 0=unpacked, 1=MIPI |
-| 19 | 1 | cfaPattern | 0=RGGB, 1=BGGR, 2=GRBG, 3=GBRG |
-| 20 | 1 | compressionId | 0=none, 1=XRAWLC |
-| 21 | 1 | reserved1 | Reserved |
-| 22 | 4 | frameCount | Total frames (0=streaming) |
-| 26 | 4 | frameRate | FPS × 1000 |
-| 30 | 8 | timestamp | Nanoseconds since epoch |
-| 38 | 4 | exposureTime | Exposure in nanoseconds |
-| 42 | 4 | iso | Sensor sensitivity |
-| 46 | 4 | whiteBalance | Color temperature (Kelvin) |
-| 50 | 4 | focusDistance | Diopters × 1000 |
-| 54 | 1 | checksumAlgorithm | 0=CRC32, 1=SHA256 |
-| 55 | 1 | recoveryInterval | Frames between index checkpoints |
-| 56 | 2 | reserved2 | Reserved |
-| 60 | 4 | headerChecksum | CRC32 of bytes 0-59 |
+See `docs/XRAW_FORMAT_SPEC.md` for the complete binary specification.
 
-### Frame Record
+**Header:** 64 bytes, big-endian, CRC32 verified  
+**Frames:** 16-byte header + data, each CRC32 verified  
+**Index:** Checkpoints at 48-frame intervals for recovery  
+**Compression:** XRAWLC uses JPEG-LOCO median-edge prediction + Int32 residuals
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 4 | magic | 0x46524D43 ("FRMC") |
-| 4 | 4 | frameIndex | Sequential frame number |
-| 8 | 4 | dataSize | Frame data size in bytes |
-| 12 | 4 | checksum | CRC32 of frame data |
-| 16 | N | data | Raw pixel data (or compressed) |
+## Permissions
 
-### Index Checkpoint
-
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 4 | magic | 0x494E4458 ("INDX") |
-| 4 | 4 | entryCount | Number of index entries |
-| 8 | 12×N | entries | (frameIndex:4, offset:8) per entry |
-
-### XRAWLC Lossless Codec
-
-The XRAWLC codec uses:
-1. **Adaptive median-edge prediction** (JPEG-LOCO algorithm)
-2. **Residual computation** (difference from predicted value)
-3. **16-bit signed residual packing**
-
-This guarantees **exact reconstruction** of all original sensor samples. No information is lost.
-
-## Camera Permissions
-
-The app requires:
-- `CAMERA` - Access to camera hardware
-- `RECORD_AUDIO` - Audio recording (optional)
-- `WRITE_EXTERNAL_STORAGE` - File output (Android ≤9)
-- `READ_MEDIA_IMAGES/VIDEO` - Scoped storage (Android 13+)
-- `FOREGROUND_SERVICE` - Keep recording during background
-- `WAKE_LOCK` - Prevent sleep during recording
-
-## Diagnostics
-
-Open the DIAG screen from the camera view to see:
-- Camera hardware level and capabilities
-- Sensor information (resolution, physical size, CFA pattern)
-- Supported RAW formats and sizes
-- Exposure control ranges
-- Video capability assessment
-- File format information
-- Build and test status
+- `CAMERA` — Camera hardware access
+- `RECORD_AUDIO` — Optional audio recording
+- `WRITE_EXTERNAL_STORAGE` — File output (Android ≤9)
+- `READ_MEDIA_IMAGES/VIDEO` — Scoped storage (Android 13+)
+- `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_CAMERA` — Recording service
+- `WAKE_LOCK` — Prevent sleep during recording
 
 ## Troubleshooting
 
+### "Native camera plugin not available"
+This message appears in browser mode. Build and install the APK.
+
 ### "Camera permission not granted"
-- Grant camera permission when prompted
-- Check Settings → Apps → XRAW Camera → Permissions
+Grant permission when prompted. Check Settings → Apps → XRAW Camera.
 
 ### "RAW capture not supported"
-- Your device may not expose RAW_SENSOR capability
-- Check diagnostics screen for supported formats
-- Only RAW still capture is attempted (not video)
+Device lacks `RAW_SENSOR` capability. Check diagnostics screen.
 
 ### Recording stops unexpectedly
-- Check thermal status in diagnostics
-- Verify available storage space
-- Check logcat for camera errors: `adb logcat -s XRawCamera`
-
-### Build fails
-- Ensure JDK 17 is installed
-- Clean build: `cd android && ./gradlew clean`
-- Check Gradle wrapper version matches requirements
+Check thermal status. Verify storage space. Check logcat: `adb logcat -s XRawCamera`
 
 ## Known Limitations
 
-1. **Continuous RAW video** requires hardware-level support that varies by device. The Redmi Note 12 Pro 5G's Camera2 implementation may not sustain 24fps RAW acquisition indefinitely.
-
-2. **RAW still capture** is the most reliable mode and works on any device with `REQUEST_AVAILABLE_CAPABILITIES_RAW`.
-
-3. **Preview LUTs** are display-only and never affect captured data.
-
-4. **Zoom** uses digital crop, not optical. No additional resolution is created.
-
-5. **File format** is custom. A separate XRAW Studio application is needed to decode `.xraw`/`.xrawlc` files on Windows.
+1. **Continuous RAW video** requires hardware support that varies by device
+2. **Preview** uses ImageReader notifications; full display requires native SurfaceView
+3. **Zoom** uses digital crop, not optical
+4. **White balance** uses CIE daylight locus approximation
+5. **File format** is custom — requires XRAW Studio (planned) for decoding
 
 ## Next Steps
 
-1. **Build the APK** using GitHub Actions or Android Studio
-2. **Install on device** and run diagnostics
-3. **Test RAW still capture** to verify sensor output
-4. **Test recording** and monitor thermal/frame-drop behavior
-5. **Report actual device capabilities** from diagnostics screen
+1. Build APK via GitHub Actions or Android Studio
+2. Install on device and run diagnostics
+3. Test RAW still capture
+4. Test recording and monitor thermal/frame-drop behavior
+5. Report actual device capabilities from diagnostics
 
 ## License
 

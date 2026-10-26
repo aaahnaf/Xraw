@@ -3,7 +3,7 @@
 export interface CameraInfo {
   id: string;
   facing: 'front' | 'back' | 'external';
-  hardwareLevel: 'legacy' | 'limited' | 'full' | 'level_3' | 'external';
+  hardwareLevel: 'legacy' | 'limited' | 'full' | 'level_3' | 'external' | 'unknown';
   capabilities: string[];
   rawSupported: boolean;
   manualControls: boolean;

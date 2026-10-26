@@ -21,7 +21,7 @@ android {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug // Replace with release keystore
+            signingConfig signingConfigs.debug // Replace with release keystore for production
         }
         debug {
             applicationIdSuffix ".debug"
@@ -41,11 +41,18 @@ android {
     buildFeatures {
         viewBinding true
     }
+
+    // Allow large heap for RAW image processing
+    packaging {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
 }
 
 dependencies {
     // Capacitor
-    implementation "com.capacitorjs:core:5.7.0"
+    implementation 'com.capacitorjs:core:5.7.0'
     
     // AndroidX
     implementation 'androidx.core:core-ktx:1.12.0'
@@ -53,8 +60,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     
-    // Camera2 (included in Android SDK)
-    // No additional dependency needed
+    // Camera2 is part of the Android SDK — no additional dependency needed
     
     // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
@@ -64,7 +70,4 @@ dependencies {
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    
-    // XRAW Camera Plugin (local module)
-    implementation project(':xraw-camera-plugin')
 }

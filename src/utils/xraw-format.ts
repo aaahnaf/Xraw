@@ -1,5 +1,6 @@
-// XRAW File Format Implementation
+// XRAW File Format Implementation (TypeScript Reference)
 // Binary format specification for .xraw and .xrawlc files
+// Must match the Kotlin implementation in XRawWriter.kt
 
 export const XRAW_MAGIC = 0x58524157; // "XRAW" in ASCII
 export const XRAW_VERSION = 1;
@@ -36,7 +37,7 @@ export interface XRAWFileHeader {
   reserved1: number;       // 1 byte
   frameCount: number;      // 4 bytes - total frames (0 if streaming)
   frameRate: number;       // 4 bytes - frames per second * 1000
-  timestamp: bigint;       // 8 bytes - capture start time (nanoseconds since epoch)
+  timestamp: bigint;       // 8 bytes - nanoseconds since Unix epoch
   exposureTime: number;    // 4 bytes - exposure time in nanoseconds
   iso: number;             // 4 bytes - sensor sensitivity
   whiteBalance: number;    // 4 bytes - color temperature in Kelvin
@@ -121,7 +122,7 @@ export function encodeHeader(header: XRAWFileHeader): Uint8Array {
   view.setUint8(21, header.reserved1);
   view.setUint32(22, header.frameCount, false);
   view.setUint32(26, header.frameRate, false);
-  // timestamp as two 32-bit values (big-endian)
+  // timestamp as two 32-bit values (big-endian) — nanoseconds since Unix epoch
   view.setUint32(30, Number((header.timestamp >> BigInt(32)) & BigInt(0xFFFFFFFF)), false);
   view.setUint32(34, Number(header.timestamp & BigInt(0xFFFFFFFF)), false);
   view.setUint32(38, header.exposureTime, false);
@@ -187,15 +188,13 @@ export function decodeHeader(data: Uint8Array): XRAWFileHeader | null {
 }
 
 /**
- * XRAWLC Lossless Compression
+ * XRAWLC Lossless Compression (TypeScript Reference Implementation)
  * 
- * Uses a simple but effective lossless compression scheme:
- * 1. Horizontal prediction (difference from left neighbor)
- * 2. Row prediction (difference from pixel above)
- * 3. Adaptive selection between horizontal and vertical prediction
- * 4. Entropy coding via bit-packing of residuals
+ * Uses adaptive median-edge prediction (JPEG-LOCO) + Int residuals.
+ * This matches the Kotlin implementation exactly.
  * 
- * This guarantees exact reconstruction of all original samples.
+ * IMPORTANT: Uses Int32 for residuals (not Int16) to handle 16-bit samples
+ * where residuals can exceed Short range.
  */
 export class XRAWLCEncoder {
   private width: number;
@@ -203,6 +202,9 @@ export class XRAWLCEncoder {
   private bitDepth: number;
   
   constructor(width: number, height: number, bitDepth: number) {
+    if (width <= 0 || height <= 0) throw new Error(`Invalid dimensions: ${width}x${height}`);
+    if (bitDepth < 8 || bitDepth > 16) throw new Error(`Unsupported bit depth: ${bitDepth}`);
+    
     this.width = width;
     this.height = height;
     this.bitDepth = bitDepth;
@@ -210,30 +212,28 @@ export class XRAWLCEncoder {
   
   /**
    * Compress RAW image data losslessly
-   * Input: Uint16Array of pixel values
+   * Input: Uint16Array of pixel values (unsigned)
    * Output: Compressed Uint8Array
    */
   compress(input: Uint16Array): Uint8Array {
-    const maxVal = (1 << this.bitDepth) - 1;
-    const residuals = new Int16Array(this.width * this.height);
+    if (input.length !== this.width * this.height) {
+      throw new Error(`Input size ${input.length} doesn't match dimensions ${this.width}x${this.height}`);
+    }
     
-    // Compute residuals using adaptive prediction
+    const maxVal = (1 << this.bitDepth) - 1;
+    // Use Int32 for residuals to handle 16-bit data without overflow
+    const residuals = new Int32Array(this.width * this.height);
+    
+    // Compute residuals using adaptive median-edge prediction
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const idx = y * this.width + x;
         const current = input[idx];
         
-        let hPred = 0; // horizontal prediction
-        let vPred = 0; // vertical prediction
+        const hPred = x > 0 ? input[idx - 1] : 0;
+        const vPred = y > 0 ? input[(y - 1) * this.width + x] : 0;
+        const dPred = (x > 0 && y > 0) ? input[(y - 1) * this.width + (x - 1)] : 0;
         
-        if (x > 0) {
-          hPred = input[idx - 1];
-        }
-        if (y > 0) {
-          vPred = input[(y - 1) * this.width + x];
-        }
-        
-        // Adaptive: choose prediction with smaller expected error
         let pred: number;
         if (x === 0 && y === 0) {
           pred = 0;
@@ -242,18 +242,15 @@ export class XRAWLCEncoder {
         } else if (y === 0) {
           pred = hPred;
         } else {
-          // Use median prediction for better compression
-          pred = this.medianPredict(hPred, vPred, input[(y - 1) * this.width + (x - 1)]);
+          pred = this.medianPredict(hPred, vPred, dPred);
         }
         
-        let residual = current - pred;
-        // Clamp to valid range
-        residual = Math.max(-maxVal, Math.min(maxVal, residual));
-        residuals[idx] = residual;
+        // No clamping — preserve exact residual
+        residuals[idx] = current - pred;
       }
     }
     
-    // Pack residuals using variable-length encoding
+    // Pack residuals as Int32
     return this.packResiduals(residuals);
   }
   
@@ -261,20 +258,37 @@ export class XRAWLCEncoder {
    * Decompress XRAWLC data back to original samples
    */
   decompress(compressed: Uint8Array): Uint16Array {
-    const residuals = this.unpackResiduals(compressed);
-    const output = new Uint16Array(this.width * this.height);
+    if (compressed.length < 5) throw new Error('Compressed data too short');
     
-    // Reconstruct from residuals
-    for (let y = 0; y < this.height; y++) {
-      for (let x = 0; x < this.width; x++) {
-        const idx = y * this.width + x;
-        const residual = residuals[idx];
+    const view = new DataView(compressed.buffer, compressed.byteOffset, compressed.byteLength);
+    
+    const w = view.getUint16(0, false);
+    const h = view.getUint16(2, false);
+    const bd = compressed[4];
+    
+    if (w !== this.width || h !== this.height) {
+      throw new Error(`Compressed dimensions ${w}x${h} don't match codec ${this.width}x${this.height}`);
+    }
+    if (bd !== this.bitDepth) {
+      throw new Error(`Compressed bit depth ${bd} doesn't match codec ${this.bitDepth}`);
+    }
+    
+    const maxVal = (1 << bd) - 1;
+    const output = new Uint16Array(w * h);
+    
+    // Unpack residuals as Int32
+    let offset = 5;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
         
-        let hPred = 0;
-        let vPred = 0;
+        if (offset + 4 > compressed.length) break;
+        const residual = view.getInt32(offset, false);
+        offset += 4;
         
-        if (x > 0) hPred = output[idx - 1];
-        if (y > 0) vPred = output[(y - 1) * this.width + x];
+        const hPred = x > 0 ? output[idx - 1] : 0;
+        const vPred = y > 0 ? output[(y - 1) * w + x] : 0;
+        const dPred = (x > 0 && y > 0) ? output[(y - 1) * w + (x - 1)] : 0;
         
         let pred: number;
         if (x === 0 && y === 0) {
@@ -284,10 +298,10 @@ export class XRAWLCEncoder {
         } else if (y === 0) {
           pred = hPred;
         } else {
-          pred = this.medianPredict(hPred, vPred, output[(y - 1) * this.width + (x - 1)]);
+          pred = this.medianPredict(hPred, vPred, dPred);
         }
         
-        output[idx] = Math.max(0, Math.min((1 << this.bitDepth) - 1, pred + residual));
+        output[idx] = (pred + residual) & maxVal;
       }
     }
     
@@ -303,39 +317,23 @@ export class XRAWLCEncoder {
     }
   }
   
-  private packResiduals(residuals: Int16Array): Uint8Array {
-    // Simple bit-packing: encode each residual as a signed value
-    // using zigzag encoding + variable length
-    const output: number[] = [];
+  private packResiduals(residuals: Int32Array): Uint8Array {
+    // Header: width(2) + height(2) + bitDepth(1) = 5 bytes
+    // Each residual: 4 bytes (Int32)
+    const output = new Uint8Array(5 + residuals.length * 4);
+    const view = new DataView(output.buffer);
     
-    // Write dimensions first
-    output.push((this.width >> 8) & 0xFF, this.width & 0xFF);
-    output.push((this.height >> 8) & 0xFF, this.height & 0xFF);
-    output.push(this.bitDepth);
+    view.setUint16(0, this.width, false);
+    view.setUint16(2, this.height, false);
+    output[4] = this.bitDepth;
     
-    // Pack residuals as 16-bit signed values (simple but correct)
+    let offset = 5;
     for (let i = 0; i < residuals.length; i++) {
-      const val = residuals[i];
-      output.push((val >> 8) & 0xFF);
-      output.push(val & 0xFF);
+      view.setInt32(offset, residuals[i], false);
+      offset += 4;
     }
     
-    return new Uint8Array(output);
-  }
-  
-  private unpackResiduals(data: Uint8Array): Int16Array {
-    const width = (data[0] << 8) | data[1];
-    const height = (data[2] << 8) | data[3];
-    
-    const residuals = new Int16Array(width * height);
-    let offset = 5; // Skip header
-    
-    for (let i = 0; i < residuals.length && offset + 1 < data.length; i++) {
-      residuals[i] = (data[offset] << 8) | data[offset + 1];
-      offset += 2;
-    }
-    
-    return residuals;
+    return output;
   }
 }
 
@@ -346,10 +344,12 @@ export function verifyRoundTrip(width: number, height: number, bitDepth: number)
   const encoder = new XRAWLCEncoder(width, height, bitDepth);
   const maxVal = (1 << bitDepth) - 1;
   
-  // Generate test data with various patterns
+  // Generate test data with fixed seed
   const original = new Uint16Array(width * height);
+  let seed = 42;
   for (let i = 0; i < original.length; i++) {
-    original[i] = Math.floor(Math.random() * (maxVal + 1));
+    seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+    original[i] = seed % (maxVal + 1);
   }
   
   // Compress

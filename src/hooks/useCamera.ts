@@ -1,40 +1,36 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { CaptureSettings, RecordingState, CameraInfo, AppError, Screen } from '../types';
+import { NativeBridge } from '../utils/native-bridge';
 
-// Simulated camera info for web preview mode
-const SIMULATED_CAMERA: CameraInfo = {
-  id: '0',
-  facing: 'back',
-  hardwareLevel: 'level_3',
-  capabilities: ['RAW_SENSOR', 'MANUAL_SENSOR', 'MANUAL_POST_PROCESSING', 'RAW12'],
-  rawSupported: true,
-  manualControls: true,
-  sensorInfo: {
-    width: 4000,
-    height: 3000,
-    physicalSize: { width: 6.43, height: 4.82 },
-    pixelArraySize: { width: 4000, height: 3000 },
-    exposureTimeRange: { min: 100000, max: 200000000000 }, // 100µs to 200s
-    sensitivityRange: { min: 50, max: 3200 },
-    whiteBalanceRange: { min: 2000, max: 8000 },
-    colorFilterArrangement: 0, // RGGB
-  },
-};
-
+/**
+ * Camera hook that connects to the native XRawCamera Capacitor plugin.
+ * 
+ * When running on a real Android device with the native plugin installed:
+ * - All operations go through the native bridge
+ * - Camera data is real
+ * - Recording status comes from native events
+ * 
+ * When running in a desktop browser (development):
+ * - Shows explicit "unavailable" state
+ * - Does NOT simulate or fake any camera behavior
+ * - UI controls are visible but disabled with clear messaging
+ */
 export function useCamera() {
   const [screen, setScreen] = useState<Screen>('camera');
-  const [cameraInfo, setCameraInfo] = useState<CameraInfo>(SIMULATED_CAMERA);
+  const [cameraInfo, setCameraInfo] = useState<CameraInfo | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [errors, setErrors] = useState<AppError[]>([]);
   const [previewActive, setPreviewActive] = useState(false);
+  const [nativeAvailable, setNativeAvailable] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   
   const [settings, setSettings] = useState<CaptureSettings>({
     resolution: { width: 1920, height: 1080 },
     frameRate: 24,
-    exposureTime: null, // auto
-    iso: null, // auto
-    whiteBalance: null, // auto
-    focusDistance: null, // auto
+    exposureTime: null,
+    iso: null,
+    whiteBalance: null,
+    focusDistance: null,
     zoom: 1.0,
     lutEnabled: false,
     lutPath: null,
@@ -46,115 +42,283 @@ export function useCamera() {
     frameCount: 0,
     droppedFrames: 0,
     currentFileSize: 0,
-    storageAvailable: 50 * 1024 * 1024 * 1024, // 50GB simulated
+    storageAvailable: 0,
     thermalStatus: 'normal',
     filePath: null,
   });
-  
-  const recordingIntervalRef = useRef<number | null>(null);
-  const frameCountRef = useRef(0);
 
+  const cleanupFnsRef = useRef<(() => void)[]>([]);
+  
   const addError = useCallback((code: string, message: string, severity: AppError['severity'], recoverable: boolean) => {
     setErrors(prev => [...prev.slice(-9), { code, message, severity, timestamp: Date.now(), recoverable }]);
   }, []);
 
   const clearErrors = useCallback(() => setErrors([]), []);
 
-  const openCamera = useCallback(async () => {
-    try {
-      // In native mode, this calls the Capacitor plugin
-      // In web mode, we simulate camera opening
-      setIsCameraOpen(true);
-      setPreviewActive(true);
-    } catch (err) {
-      addError('CAMERA_OPEN_FAILED', 'Failed to open camera', 'error', true);
+  // Initialize: check native availability and enumerate cameras
+  useEffect(() => {
+    let cancelled = false;
+
+    async function init() {
+      setInitializing(true);
+      
+      const available = NativeBridge.available;
+      setNativeAvailable(available);
+
+      if (!available) {
+        // Running in browser — show development mode
+        addError('NATIVE_UNAVAILABLE', 
+          'Native camera plugin not available. Running in browser development mode. Build and install the APK for camera access.',
+          'warning', false);
+        setInitializing(false);
+        return;
+      }
+
+      try {
+        // Check permissions
+        const perms = await NativeBridge.checkPermissions();
+        if (perms.camera !== 'granted') {
+          await NativeBridge.requestPermissions();
+        }
+
+        // Enumerate cameras
+        const result = await NativeBridge.enumerateCameras();
+        if (!cancelled && result.cameras && result.cameras.length > 0) {
+          const cam = result.cameras[0];
+          setCameraInfo({
+            id: cam.id,
+            facing: cam.facing,
+            hardwareLevel: cam.hardwareLevel,
+            capabilities: Array.from(cam.capabilities || []),
+            rawSupported: cam.rawSupported || false,
+            manualControls: cam.manualControls || false,
+            sensorInfo: cam.sensorInfo ? {
+              width: cam.sensorInfo.width,
+              height: cam.sensorInfo.height,
+              physicalSize: cam.sensorInfo.physicalSize || { width: 0, height: 0 },
+              pixelArraySize: cam.sensorInfo.pixelArraySize || { width: 0, height: 0 },
+              exposureTimeRange: cam.sensorInfo.exposureTimeRange || { min: 0, max: 0 },
+              sensitivityRange: cam.sensorInfo.sensitivityRange || { min: 0, max: 0 },
+              whiteBalanceRange: cam.sensorInfo.whiteBalanceRange || { min: 2000, max: 8000 },
+              colorFilterArrangement: cam.sensorInfo.colorFilterArrangement ?? -1,
+            } : null,
+          });
+        }
+
+        // Register native event listeners
+        const cleanups: (() => void)[] = [];
+
+        cleanups.push(NativeBridge.onCameraError((data) => {
+          addError('CAMERA_ERROR', data.error || 'Unknown camera error', 'error', true);
+        }));
+
+        cleanups.push(NativeBridge.onCameraDisconnected(() => {
+          setIsCameraOpen(false);
+          setPreviewActive(false);
+          addError('CAMERA_DISCONNECTED', 'Camera disconnected', 'error', true);
+        }));
+
+        cleanups.push(NativeBridge.onRecordingProgress((data) => {
+          setRecording(prev => ({
+            ...prev,
+            frameCount: data.frameCount || prev.frameCount,
+            droppedFrames: data.droppedFrames || prev.droppedFrames,
+            currentFileSize: data.fileSize || prev.currentFileSize,
+          }));
+        }));
+
+        cleanups.push(NativeBridge.onRecordingStopped((data) => {
+          setRecording(prev => ({
+            ...prev,
+            isRecording: false,
+            startTime: null,
+            frameCount: data.totalFrames || prev.frameCount,
+            droppedFrames: data.droppedFrames || prev.droppedFrames,
+          }));
+        }));
+
+        cleanups.push(NativeBridge.onFrameDropped((data) => {
+          addError('FRAME_DROPPED', `Frame dropped: ${data.reason} (total: ${data.totalDropped})`, 'warning', false);
+        }));
+
+        cleanups.push(NativeBridge.onPreviewRestored(() => {
+          setPreviewActive(true);
+        }));
+
+        cleanupFnsRef.current = cleanups;
+      } catch (err: any) {
+        if (!cancelled) {
+          addError('INIT_FAILED', `Initialization failed: ${err.message || err}`, 'error', true);
+        }
+      }
+
+      if (!cancelled) {
+        setInitializing(false);
+      }
     }
+
+    init();
+
+    return () => {
+      cancelled = true;
+      cleanupFnsRef.current.forEach(fn => fn());
+      cleanupFnsRef.current = [];
+    };
   }, [addError]);
+
+  const openCamera = useCallback(async () => {
+    if (!nativeAvailable) {
+      addError('NOT_NATIVE', 'Camera requires native Android build', 'error', false);
+      return;
+    }
+
+    try {
+      await NativeBridge.openCamera(cameraInfo?.id || '0');
+      setIsCameraOpen(true);
+      
+      await NativeBridge.startPreview();
+      setPreviewActive(true);
+    } catch (err: any) {
+      addError('CAMERA_OPEN_FAILED', err.message || 'Failed to open camera', 'error', true);
+    }
+  }, [nativeAvailable, cameraInfo, addError]);
 
   const closeCamera = useCallback(async () => {
     if (recording.isRecording) {
       await stopRecording();
     }
-    setIsCameraOpen(false);
-    setPreviewActive(false);
-  }, [recording.isRecording]);
-
-  const startRecording = useCallback(() => {
-    if (recording.isRecording) return;
     
-    const now = Date.now();
-    const filePath = `/storage/emulated/0/XRAW/REC_${now}.xrawlc`;
-    
-    setRecording(prev => ({
-      ...prev,
-      isRecording: true,
-      startTime: now,
-      frameCount: 0,
-      droppedFrames: 0,
-      currentFileSize: 0,
-      filePath,
-    }));
-    
-    frameCountRef.current = 0;
-    
-    // Simulate frame counting
-    recordingIntervalRef.current = window.setInterval(() => {
-      frameCountRef.current += 1;
-      const elapsed = Date.now() - now;
-      const fileSize = frameCountRef.current * (1920 * 1080 * 2); // ~4MB per frame RAW
-      
-      setRecording(prev => ({
-        ...prev,
-        frameCount: frameCountRef.current,
-        currentFileSize: fileSize,
-        storageAvailable: Math.max(0, prev.storageAvailable - 1920 * 1080 * 2),
-      }));
-      
-      // Simulate thermal increase over time
-      if (elapsed > 120000) { // 2 minutes
-        setRecording(prev => ({
-          ...prev,
-          thermalStatus: elapsed > 300000 ? 'severe' : 'mild',
-        }));
+    try {
+      if (nativeAvailable) {
+        await NativeBridge.closeCamera();
       }
-    }, 1000 / 24); // 24fps
-  }, [recording.isRecording]);
-
-  const stopRecording = useCallback(async () => {
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-      recordingIntervalRef.current = null;
+    } catch (err: any) {
+      addError('CAMERA_CLOSE_FAILED', err.message || 'Failed to close camera', 'warning', true);
     }
     
-    setRecording(prev => ({
-      ...prev,
-      isRecording: false,
-      startTime: null,
-    }));
-  }, []);
+    setIsCameraOpen(false);
+    setPreviewActive(false);
+  }, [recording.isRecording, nativeAvailable, addError]);
+
+  const startRecording = useCallback(async () => {
+    if (!nativeAvailable || recording.isRecording) return;
+
+    try {
+      const result = await NativeBridge.startRecording({
+        width: settings.resolution.width,
+        height: settings.resolution.height,
+        fps: settings.frameRate,
+        lossless: true, // Always use XRAWLC lossless
+      });
+
+      if (result.sizeMismatch) {
+        addError('SIZE_MISMATCH', 
+          `Actual resolution: ${result.width}×${result.height} (requested ${settings.resolution.width}×${settings.resolution.height})`,
+          'warning', false);
+      }
+
+      setRecording({
+        isRecording: true,
+        startTime: Date.now(),
+        frameCount: 0,
+        droppedFrames: 0,
+        currentFileSize: 0,
+        storageAvailable: 0, // Will be updated by diagnostics
+        thermalStatus: 'normal',
+        filePath: result.filePath,
+      });
+    } catch (err: any) {
+      addError('RECORDING_FAILED', err.message || 'Failed to start recording', 'error', true);
+    }
+  }, [nativeAvailable, recording.isRecording, settings, addError]);
+
+  const stopRecording = useCallback(async () => {
+    if (!nativeAvailable) return;
+
+    try {
+      const result = await NativeBridge.stopRecording();
+      setRecording(prev => ({
+        ...prev,
+        isRecording: false,
+        startTime: null,
+        frameCount: result.totalFrames || prev.frameCount,
+        droppedFrames: result.droppedFrames || prev.droppedFrames,
+      }));
+    } catch (err: any) {
+      addError('STOP_FAILED', err.message || 'Failed to stop recording', 'error', true);
+    }
+  }, [nativeAvailable, addError]);
 
   const captureRawStill = useCallback(async () => {
-    const timestamp = Date.now();
-    const filePath = `/storage/emulated/0/XRAW/RAW_${timestamp}.xraw`;
-    
-    addError('CAPTURE_OK', `RAW still captured: RAW_${timestamp}.xraw`, 'info', false);
-    
-    // In native mode, this triggers actual RAW capture via Camera2
-    return { success: true, filePath, timestamp };
-  }, [addError]);
+    if (!nativeAvailable) {
+      addError('NOT_NATIVE', 'RAW capture requires native Android build', 'error', false);
+      return { success: false, filePath: '', timestamp: 0 };
+    }
 
-  const updateSetting = useCallback(<K extends keyof CaptureSettings>(key: K, value: CaptureSettings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
+    try {
+      const result = await NativeBridge.captureRawStill();
+      
+      if (result.success) {
+        addError('CAPTURE_OK', 
+          `RAW captured: ${result.width}×${result.height} @ ${result.bitDepth}bit (${(result.dataSize / 1024).toFixed(0)}KB)`,
+          'info', false);
       }
-    };
-  }, []);
+      
+      return result;
+    } catch (err: any) {
+      addError('CAPTURE_FAILED', err.message || 'RAW capture failed', 'error', true);
+      return { success: false, filePath: '', timestamp: 0 };
+    }
+  }, [nativeAvailable, addError]);
+
+  const updateSetting = useCallback(async <K extends keyof CaptureSettings>(key: K, value: CaptureSettings[K]) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+
+    // Apply to native if available
+    if (!nativeAvailable) return;
+
+    try {
+      switch (key) {
+        case 'exposureTime':
+          await NativeBridge.setExposure(value as number | null);
+          break;
+        case 'iso':
+          await NativeBridge.setISO(value as number | null);
+          break;
+        case 'whiteBalance':
+          await NativeBridge.setWhiteBalance(value as number | null);
+          break;
+        case 'focusDistance':
+          await NativeBridge.setFocusDistance(value as number | null);
+          break;
+        case 'zoom':
+          await NativeBridge.setZoom(value as number);
+          break;
+      }
+    } catch (err: any) {
+      addError('SETTING_FAILED', `Failed to apply ${key}: ${err.message || err}`, 'warning', true);
+    }
+  }, [nativeAvailable, addError]);
+
+  // Update diagnostics periodically when recording
+  useEffect(() => {
+    if (!recording.isRecording || !nativeAvailable) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const diag = await NativeBridge.getDiagnostics();
+        setRecording(prev => ({
+          ...prev,
+          storageAvailable: diag.storageAvailable || 0,
+          thermalStatus: diag.thermalStatus || 'normal',
+        }));
+      } catch {
+        // Non-critical
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [recording.isRecording, nativeAvailable]);
 
   return {
     screen,
@@ -162,6 +326,8 @@ export function useCamera() {
     cameraInfo,
     isCameraOpen,
     previewActive,
+    nativeAvailable,
+    initializing,
     settings,
     recording,
     errors,

@@ -6,16 +6,15 @@ import com.getcapacitor.BridgeActivity
 /**
  * XRAW Camera - Main Activity
  * 
- * Extends Capacitor BridgeActivity to load the web frontend
- * and register native plugins for camera access.
+ * Extends Capacitor BridgeActivity to load the web frontend.
+ * The XRawCamera plugin is auto-registered by Capacitor 5
+ * via the @CapacitorPlugin annotation.
  */
 class MainActivity : BridgeActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Register XRAW Camera plugin
-        registerPlugin(XRawCameraPlugin::class.java)
+        // Capacitor 5 auto-registers plugins annotated with @CapacitorPlugin
     }
     
     override fun onPause() {
@@ -25,11 +24,9 @@ class MainActivity : BridgeActivity() {
     
     override fun onResume() {
         super.onResume()
-        // Resume camera if needed
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        // Ensure camera is released
     }
 }

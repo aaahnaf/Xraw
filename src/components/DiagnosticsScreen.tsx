@@ -141,11 +141,29 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
           <div className="space-y-1">
             <InfoRow label="Frontend UI" value="✓ Implemented" highlight />
             <InfoRow label="XRAW Format Codec" value="✓ Implemented + Round-trip verified" highlight />
-            <InfoRow label="Native Camera Plugin" value="✓ Kotlin source complete" highlight />
-            <InfoRow label="Gradle Build Config" value="✓ Complete" highlight />
-            <InfoRow label="GitHub Actions CI" value="✓ Workflow created" highlight />
+            <InfoRow label="Native Bridge" value="✓ Typed Capacitor 5 plugin" highlight />
+            <InfoRow label="Native Camera Plugin" value="✓ Kotlin Camera2 source" highlight />
+            <InfoRow label="Gradle Build Config" value="✓ Complete (AGP 8.2.2)" highlight />
+            <InfoRow label="GitHub Actions CI" value="✓ Workflow (no test suppression)" highlight />
             <InfoRow label="Device Testing" value="⚠ Requires physical device" />
             <InfoRow label="APK Build" value="→ Run GitHub Actions or Android Studio" />
+          </div>
+        </section>
+        
+        {/* Defects Fixed */}
+        <section>
+          <h2 className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-2">Defects Fixed</h2>
+          <div className="space-y-1">
+            <InfoRow label="Simulated camera" value="✓ Removed — uses native bridge" />
+            <InfoRow label="AWB_TEMPERATURES" value="✓ Fixed — Range[] not single Range" />
+            <InfoRow label="Zoom crop region" value="✓ Fixed — SCALER_CROP_REGION" />
+            <InfoRow label="ImageReader API" value="✓ Fixed — newInstance for compat" />
+            <InfoRow label="Timestamp" value="✓ Fixed — epoch nanos not nanoTime" />
+            <InfoRow label="XRAWLC overflow" value="✓ Fixed — Int32 residuals" />
+            <InfoRow label="Recording compression" value="✓ Fixed — actually compresses" />
+            <InfoRow label="finalize() shadow" value="✓ Fixed — finalizeFile()" />
+            <InfoRow label="Race conditions" value="✓ Fixed — byte queue not Image" />
+            <InfoRow label="Capacitor API" value="✓ Fixed — @CapacitorPlugin" />
           </div>
         </section>
       </div>

@@ -6,6 +6,7 @@ interface Props {
   settings: CaptureSettings;
   recording: RecordingState;
   previewActive: boolean;
+  nativeAvailable: boolean;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onCaptureStill: () => void;
@@ -19,6 +20,7 @@ export function CameraScreen({
   settings,
   recording,
   previewActive,
+  nativeAvailable,
   onStartRecording,
   onStopRecording,
   onCaptureStill,
@@ -37,13 +39,14 @@ export function CameraScreen({
 
   // Update recording elapsed time
   useEffect(() => {
-    if (!recording.isRecording || !recording.startTime) {
+    if (!recording.isRecording || recording.startTime == null) {
       setElapsedTime('00:00:00');
       return;
     }
 
+    const startTime = recording.startTime;
     const interval = setInterval(() => {
-      const elapsed = Date.now() - recording.startTime!;
+      const elapsed = Date.now() - startTime;
       const hours = Math.floor(elapsed / 3600000);
       const minutes = Math.floor((elapsed % 3600000) / 60000);
       const seconds = Math.floor((elapsed % 60000) / 1000);
@@ -155,6 +158,18 @@ export function CameraScreen({
         width={1920}
         height={1080}
       />
+      
+      {/* Native Unavailable Overlay */}
+      {!nativeAvailable && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
+          <div className="text-center space-y-2 px-6">
+            <div className="text-[10px] font-mono text-yellow-400/80">CAMERA UNAVAILABLE</div>
+            <div className="text-[9px] font-mono text-white/40">
+              Native plugin required. Install the Android APK.
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Toggle Controls */}
       <button
@@ -392,9 +407,14 @@ export function CameraScreen({
           <div className="absolute bottom-0 left-0 right-0 z-40 flex items-end justify-between px-4 pb-4 bg-gradient-to-t from-black/60 to-transparent">
             {/* RAW Still Button */}
             <button
-              onClick={onCaptureStill}
-              className="w-12 h-12 rounded-full border-2 border-white/30 flex items-center justify-center hover:border-white/60 transition-colors active:scale-95"
-              title="Capture RAW Still"
+              onClick={nativeAvailable ? onCaptureStill : undefined}
+              disabled={!nativeAvailable}
+              className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors active:scale-95 ${
+                nativeAvailable 
+                  ? 'border-white/30 hover:border-white/60' 
+                  : 'border-white/10 opacity-40 cursor-not-allowed'
+              }`}
+              title={nativeAvailable ? "Capture RAW Still" : "Requires native build"}
             >
               <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
                 <span className="text-[8px] font-mono text-white/70">RAW</span>
@@ -403,18 +423,21 @@ export function CameraScreen({
             
             {/* Recording Button */}
             <button
-              onClick={recording.isRecording ? onStopRecording : onStartRecording}
+              onClick={nativeAvailable ? (recording.isRecording ? onStopRecording : onStartRecording) : undefined}
+              disabled={!nativeAvailable}
               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all active:scale-95 ${
-                recording.isRecording 
-                  ? 'border-red-500 hover:border-red-400' 
-                  : 'border-white/40 hover:border-white/70'
+                !nativeAvailable 
+                  ? 'border-white/10 opacity-40 cursor-not-allowed'
+                  : recording.isRecording 
+                    ? 'border-red-500 hover:border-red-400' 
+                    : 'border-white/40 hover:border-white/70'
               }`}
-              title={recording.isRecording ? 'Stop Recording' : 'Start Recording'}
+              title={nativeAvailable ? (recording.isRecording ? 'Stop Recording' : 'Start Recording') : 'Requires native build'}
             >
               {recording.isRecording ? (
                 <div className="w-6 h-6 rounded-sm bg-red-500" />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-red-500/80" />
+                <div className={`w-10 h-10 rounded-full ${nativeAvailable ? 'bg-red-500/80' : 'bg-white/10'}`} />
               )}
             </button>
             

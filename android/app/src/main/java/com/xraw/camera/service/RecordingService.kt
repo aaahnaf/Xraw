@@ -9,13 +9,16 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.xraw.camera.R
 
 /**
  * Recording Service
  * 
  * Foreground service that keeps the app alive during recording.
  * Shows a persistent notification with recording status.
+ * 
+ * Note: This service does NOT guarantee continued recording if Android
+ * kills the process or the camera hardware stops. It only provides
+ * foreground service priority to reduce the chance of being killed.
  */
 class RecordingService : Service() {
     
