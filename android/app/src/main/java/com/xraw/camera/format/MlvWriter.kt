@@ -404,8 +404,10 @@ class MlvWriter(private val file: File) {
             // Open as RandomAccessFile to update frame count
             val raf = RandomAccessFile(file, "rw")
             try {
-                // Frame count is at offset 48 in MLVI block (after GUID)
-                raf.seek(48)
+                // Frame count is at offset 40 in MLVI block
+                // Layout: [4: magic][4: size][8: timestamp][16: GUID][4: fileCount][4: fileIndex][4: frameCount]
+                // Offset:  0        4         8           16          32           36          40
+                raf.seek(40)
                 val frameCountBuffer = ByteBuffer.allocate(4)
                 frameCountBuffer.order(ByteOrder.LITTLE_ENDIAN)
                 frameCountBuffer.putInt(totalFrames)
