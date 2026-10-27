@@ -38,15 +38,74 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Diagnose Android SDK environment
+        run: |
+          echo "=== Android SDK Environment Diagnostics ==="
+          echo "ANDROID_HOME: ${ANDROID_HOME:-not set}"
+          echo "ANDROID_SDK_ROOT: ${ANDROID_SDK_ROOT:-not set}"
+          if [ -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}" ]; then
+            echo "SDK directory contents:"
+            ls -la "${ANDROID_HOME:-/usr/local/lib/android/sdk}" || true
+          fi
+          echo "==========================================="
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+          packages: |
+            cmdline-tools;latest
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
 
       - name: Verify SDK installation
         run: |
-          echo "✓ Android SDK setup complete"
-          sdkmanager --list_installed | grep -E "(platform-tools|platforms;android-34|build-tools;34.0.0)" || echo "Warning: Expected packages not found"
+          echo "=== Verifying Android SDK Installation ==="
+          echo "Installed packages:"
+          sdkmanager --list_installed
+          
+          echo ""
+          echo "Checking required packages..."
+          
+          # Check each required package and fail if missing
+          MISSING=0
+          
+          if ! sdkmanager --list_installed | grep -q "cmdline-tools"; then
+            echo "✗ ERROR: cmdline-tools not installed"
+            MISSING=1
+          else
+            echo "✓ cmdline-tools installed"
+          fi
+          
+          if ! sdkmanager --list_installed | grep -q "platform-tools"; then
+            echo "✗ ERROR: platform-tools not installed"
+            MISSING=1
+          else
+            echo "✓ platform-tools installed"
+          fi
+          
+          if ! sdkmanager --list_installed | grep -q "platforms;android-34"; then
+            echo "✗ ERROR: platforms;android-34 not installed"
+            MISSING=1
+          else
+            echo "✓ platforms;android-34 installed"
+          fi
+          
+          if ! sdkmanager --list_installed | grep -q "build-tools;34.0.0"; then
+            echo "✗ ERROR: build-tools;34.0.0 not installed"
+            MISSING=1
+          else
+            echo "✓ build-tools;34.0.0 installed"
+          fi
+          
+          if [ $MISSING -eq 1 ]; then
+            echo ""
+            echo "✗ SDK verification FAILED: Required packages are missing"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✓ All required SDK packages verified successfully"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -200,15 +259,74 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Diagnose Android SDK environment
+        run: |
+          echo "=== Android SDK Environment Diagnostics ==="
+          echo "ANDROID_HOME: ${ANDROID_HOME:-not set}"
+          echo "ANDROID_SDK_ROOT: ${ANDROID_SDK_ROOT:-not set}"
+          if [ -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}" ]; then
+            echo "SDK directory contents:"
+            ls -la "${ANDROID_HOME:-/usr/local/lib/android/sdk}" || true
+          fi
+          echo "==========================================="
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+          packages: |
+            cmdline-tools;latest
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
 
       - name: Verify SDK installation
         run: |
-          echo "✓ Android SDK setup complete"
-          sdkmanager --list_installed | grep -E "(platform-tools|platforms;android-34|build-tools;34.0.0)" || echo "Warning: Expected packages not found"
+          echo "=== Verifying Android SDK Installation ==="
+          echo "Installed packages:"
+          sdkmanager --list_installed
+          
+          echo ""
+          echo "Checking required packages..."
+          
+          # Check each required package and fail if missing
+          MISSING=0
+          
+          if ! sdkmanager --list_installed | grep -q "cmdline-tools"; then
+            echo "✗ ERROR: cmdline-tools not installed"
+            MISSING=1
+          else
+            echo "✓ cmdline-tools installed"
+          fi
+          
+          if ! sdkmanager --list_installed | grep -q "platform-tools"; then
+            echo "✗ ERROR: platform-tools not installed"
+            MISSING=1
+          else
+            echo "✓ platform-tools installed"
+          fi
+          
+          if ! sdkmanager --list_installed | grep -q "platforms;android-34"; then
+            echo "✗ ERROR: platforms;android-34 not installed"
+            MISSING=1
+          else
+            echo "✓ platforms;android-34 installed"
+          fi
+          
+          if ! sdkmanager --list_installed | grep -q "build-tools;34.0.0"; then
+            echo "✗ ERROR: build-tools;34.0.0 not installed"
+            MISSING=1
+          else
+            echo "✓ build-tools;34.0.0 installed"
+          fi
+          
+          if [ $MISSING -eq 1 ]; then
+            echo ""
+            echo "✗ SDK verification FAILED: Required packages are missing"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✓ All required SDK packages verified successfully"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
