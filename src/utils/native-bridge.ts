@@ -160,6 +160,24 @@ export const NativeBridge = {
     return callNative('startLogVideoRecording', options);
   },
 
+  async startMlvRecording(options: {
+    width: number;
+    height: number;
+    fps: number;
+  }): Promise<{
+    success: boolean;
+    filePath: string;
+    width: number;
+    height: number;
+    fps: number;
+    bitDepth: number;
+  }> {
+    if (!isNativeAvailable()) {
+      throw new Error('Native plugin not available');
+    }
+    return callNative('startMlvRecording', options);
+  },
+
   async stopLogVideoRecording(): Promise<{
     totalFrames: number;
     droppedFrames: number;
@@ -169,6 +187,16 @@ export const NativeBridge = {
       throw new Error('Native plugin not available');
     }
     return callNative('stopLogVideoRecording');
+  },
+
+  async stopMlvRecording(): Promise<{
+    totalFrames: number;
+    droppedFrames: number;
+  }> {
+    if (!isNativeAvailable()) {
+      throw new Error('Native plugin not available');
+    }
+    return callNative('stopRecording');
   },
 
   async setPreviewFrameRate(fps: number): Promise<{ applied: number; requested: number }> {

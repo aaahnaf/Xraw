@@ -21,7 +21,24 @@ export interface SensorInfo {
   colorFilterArrangement: number;
 }
 
-export type CaptureMode = 'raw' | 'log_video';
+export type CaptureMode = 'raw' | 'log_video' | 'mlv';
+
+export type RecordingResolution = 
+  | '1080p_open_gate'  // 1920x1440 4:3 - Main mode
+  | '2k_open_gate'     // 2560x1920 4:3 - High quality
+  | '4k_open_gate';    // 3840x2880 4:3 - Experimental
+
+// Helper to get actual dimensions from resolution enum
+export function getResolutionDimensions(resolution: RecordingResolution): { width: number; height: number; aspectRatio: string; label: string } {
+  switch (resolution) {
+    case '1080p_open_gate':
+      return { width: 1920, height: 1440, aspectRatio: '4:3', label: '1080p Open Gate' };
+    case '2k_open_gate':
+      return { width: 2560, height: 1920, aspectRatio: '4:3', label: '2K Open Gate' };
+    case '4k_open_gate':
+      return { width: 3840, height: 2880, aspectRatio: '4:3', label: '4K Open Gate (Experimental)' };
+  }
+}
 
 export type LogProfile = 
   | 'none'
@@ -47,7 +64,7 @@ export interface LogProfileInfo {
 }
 
 export interface CaptureSettings {
-  resolution: { width: number; height: number };
+  resolution: RecordingResolution;
   frameRate: number;
   previewFrameRate: number; // Independent preview FPS
   exposureTime: number | null; // nanoseconds, null = auto

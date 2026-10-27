@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { CaptureSettings, RecordingState, CameraInfo, LogProfile } from '../types';
 import { getProfileInfo, getAvailableProfiles } from '../utils/log-profiles';
+import { getResolutionDimensions } from '../types';
 
 interface Props {
   cameraInfo: CameraInfo;
@@ -80,6 +81,8 @@ export function CameraScreen({
   const getModeLabel = () => {
     if (settings.mode === 'raw') {
       return settings.losslessCompression ? 'RAW LC' : 'RAW';
+    } else if (settings.mode === 'mlv') {
+      return 'MLV';
     } else {
       const profile = getProfileInfo(settings.logProfile);
       return profile.name.toUpperCase();
@@ -136,7 +139,10 @@ export function CameraScreen({
 
                 {/* Resolution & FPS */}
                 <div className="text-xs font-mono text-white/70">
-                  {settings.resolution.width}×{settings.resolution.height} @ {settings.frameRate}fps
+                  {(() => {
+                    const dims = getResolutionDimensions(settings.resolution);
+                    return `${dims.width}×${dims.height} @ ${settings.frameRate}fps`;
+                  })()}
                 </div>
 
                 {/* Preview FPS */}

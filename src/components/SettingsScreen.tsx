@@ -31,16 +31,17 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
             <label className="text-sm font-medium block mb-2" style={{ color: 'var(--text-primary)' }}>Resolution</label>
             <div className="space-y-2">
               {[
-                { w: 1920, h: 1080, label: '1920 × 1080', desc: 'Full HD' },
-                { w: 2560, h: 1440, label: '2560 × 1440', desc: 'QHD (Experimental)' },
+                { id: '1080p_open_gate', label: '1920 × 1440', desc: '1080p Open Gate 4:3 (Main)' },
+                { id: '2k_open_gate', label: '2560 × 1920', desc: '2K Open Gate 4:3 (High Quality)' },
+                { id: '4k_open_gate', label: '3840 × 2880', desc: '4K Open Gate 4:3 (Experimental)' },
               ].map(res => (
                 <button
-                  key={`${res.w}x${res.h}`}
-                  onClick={() => onUpdateSetting('resolution', { width: res.w, height: res.h })}
+                  key={res.id}
+                  onClick={() => onUpdateSetting('resolution', res.id as any)}
                   className="w-full text-left px-4 py-3 rounded-lg transition-all"
                   style={{
-                    background: settings.resolution.width === res.w && settings.resolution.height === res.h ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
-                    border: `1px solid ${settings.resolution.width === res.w && settings.resolution.height === res.h ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+                    background: settings.resolution === res.id ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                    border: `1px solid ${settings.resolution === res.id ? 'var(--accent-active)' : 'var(--border-subtle)'}`
                   }}
                 >
                   <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{res.label}</div>
@@ -69,6 +70,49 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
                 </button>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Capture Mode Section */}
+        <section>
+          <h2 className="text-sm font-semibold mb-4 px-1" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>CAPTURE MODE</h2>
+          
+          <div className="space-y-2">
+            <button
+              onClick={() => onUpdateSetting('mode', 'raw')}
+              className="w-full text-left px-4 py-3 rounded-lg transition-all"
+              style={{
+                background: settings.mode === 'raw' ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                border: `1px solid ${settings.mode === 'raw' ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
+            >
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>RAW</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Sensor data preservation</div>
+            </button>
+            
+            <button
+              onClick={() => onUpdateSetting('mode', 'mlv')}
+              className="w-full text-left px-4 py-3 rounded-lg transition-all"
+              style={{
+                background: settings.mode === 'mlv' ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                border: `1px solid ${settings.mode === 'mlv' ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
+            >
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>MLV</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Magic Lantern Video format</div>
+            </button>
+            
+            <button
+              onClick={() => onUpdateSetting('mode', 'log_video')}
+              className="w-full text-left px-4 py-3 rounded-lg transition-all"
+              style={{
+                background: settings.mode === 'log_video' ? 'var(--bg-elevated)' : 'var(--bg-secondary)',
+                border: `1px solid ${settings.mode === 'log_video' ? 'var(--accent-active)' : 'var(--border-subtle)'}`
+              }}
+            >
+              <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>LOG VIDEO</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Processed video with log curve</div>
+            </button>
           </div>
         </section>
 

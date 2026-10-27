@@ -937,14 +937,23 @@ class XRawCameraPlugin : Plugin() {
 
             // Finalize file
             val writer = xrawWriter
+            val mlv = mlvWriter
             if (writer != null) {
                 try {
                     writer.finalizeFile()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error finalizing file", e)
+                    Log.e(TAG, "Error finalizing XRAW file", e)
+                }
+            }
+            if (mlv != null) {
+                try {
+                    mlv.finalizeFile()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error finalizing MLV file", e)
                 }
             }
             xrawWriter = null
+            mlvWriter = null
 
             // Close raw reader
             closeRawReader()
@@ -1424,6 +1433,199 @@ class XRawCameraPlugin : Plugin() {
     // ==================== LOG VIDEO RECORDING ====================
 
     private var logVideoEncoder: com.xraw.camera.video.LogVideoEncoder? = null
+    private var mlvWriter: com.xraw.camera.format.MlvWriter? = null
+
+    @PluginMethod
+    fun startMlvRecording(call: PluginCall) {
+        if (isRecording.get()) {
+            call.reject("Already recording")
+            return
+        }
+
+        val device = cameraDevice ?: run {
+            call.reject("Camera not open")
+            return
+        }
+
+        try {
+            val width = call.getInt("width") ?: 1920
+            val height = call.getInt("height") ?: 1440
+            val fps = call.getInt("fps") ?: 24
+
+            // Create output file
+            val timestamp = System.currentTimeMillis()
+            val outputDir = File(context.getExternalFilesDir(null), "XRAW")
+            outputDir.mkdirs()
+            val outputFile = File(outputDir, "MLV_$timestamp.mlv")
+
+            // Initialize MLV writer
+            mlvWriter = com.xraw.camera.format.MlvWriter(outputFile)
+            mlvWriter!!.writeHeader(
+                width = width,
+                height = height,
+                bitDepth = 16,
+                frameRate = fps.toDouble(),
+                timestampMillis = timestamp,
+                exposureTime = currentExposureTime ?: 0L,
+                iso = currentISO ?: 0,
+                whiteBalance = currentWhiteBalance ?: 0,
+                cameraName = "XRAW Camera",
+                cameraModel = "Redmi Note 12 Pro 5G"
+            )
+
+            // Find RAW output size matching requested resolution
+            val config = cameraCharacteristics!!.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) as StreamConfigurationMap
+            val rawSizes = config.getOutputSizes(android.graphics.ImageFormat.RAW_SENSOR)
+
+            val targetSize = rawSizes?.firstOrNull { it.width == width && it.height == height }
+                ?: rawSizes?.minByOrNull { Math.abs(it.width - width) + Math.abs(it.height - height) }
+                ?: run {
+                    call.reject("No suitable RAW output size found")
+                    return
+                }
+
+            // Check minimum frame duration
+            val minDuration = config.getOutputMinFrameDuration(android.graphics.ImageFormat.RAW_SENSOR, targetSize)
+            val maxFps = if (minDuration > 0) (1000000000L / minDuration).toInt() else 0
+
+            if (fps > maxFps && maxFps > 0) {
+                call.reject("Requested FPS ($fps) exceeds maximum ($maxFps) for ${targetSize.width}x${targetSize.height}")
+                return
+            }
+
+            // Stop current preview
+            closeCaptureSession()
+            closePreviewReader()
+
+            // Create RAW ImageReader
+            closeRawReader()
+            rawImageReader = ImageReader.newInstance(
+                targetSize.width,
+                targetSize.height,
+                android.graphics.ImageFormat.RAW_SENSOR,
+                MAX_FRAME_QUEUE_SIZE + 1
+            )
+
+            // Set up image listener
+            rawImageReader!!.setOnImageAvailableListener({ reader ->
+                val image = reader.acquireLatestImage()
+                if (image != null) {
+                    try {
+                        if (!isRecording.get()) {
+                            image.close()
+                            return@setOnImageAvailableListener
+                        }
+
+                        // Copy buffer data immediately
+                        val plane = image.planes[0]
+                        val buffer = plane.buffer
+                        val data = ByteArray(buffer.remaining())
+                        buffer.get(data)
+
+                        val frameIdx = frameCounter.get()
+                        val timestampNanos = image.timestamp
+
+                        // Offer byte array to queue
+                        val frameData = FrameData(data, frameIdx)
+                        if (!frameQueue.offer(frameData, 50, TimeUnit.MILLISECONDS)) {
+                            droppedFrameCount.incrementAndGet()
+                            notifyListeners("frameDropped", JSObject().apply {
+                                put("reason", "queue_full")
+                                put("totalDropped", droppedFrameCount.get())
+                            })
+                        }
+                    } finally {
+                        image.close()
+                    }
+                }
+            }, cameraHandler)
+
+            // Create capture session
+            val surfaces = listOf<Surface>(rawImageReader!!.surface)
+
+            device.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
+                override fun onConfigured(session: CameraCaptureSession) {
+                    captureSession = session
+                    isRecording.set(true)
+                    frameCounter.set(0)
+                    droppedFrameCount.set(0)
+                    writerActive.set(true)
+
+                    val requestBuilder = device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+                    requestBuilder.addTarget(rawImageReader!!.surface)
+                    applySettingsToRequest(requestBuilder)
+
+                    // Set frame rate
+                    requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                        android.util.Range(fps, fps))
+
+                    session.setRepeatingRequest(requestBuilder.build(), null, cameraHandler)
+
+                    // Start writer thread processing
+                    startMlvWriterProcessing()
+
+                    val result = JSONObject()
+                    result.put("success", true)
+                    result.put("filePath", outputFile.absolutePath)
+                    result.put("width", targetSize.width)
+                    result.put("height", targetSize.height)
+                    result.put("fps", fps)
+                    result.put("bitDepth", 16)
+                    call.resolve(result)
+                }
+
+                override fun onConfigureFailed(session: CameraCaptureSession) {
+                    call.reject("MLV recording session configuration failed")
+                    mlvWriter?.close()
+                    mlvWriter = null
+                }
+            }, cameraHandler)
+
+        } catch (e: Exception) {
+            call.reject("MLV recording error: ${e.message}", e)
+            mlvWriter?.close()
+            mlvWriter = null
+        }
+    }
+
+    private fun startMlvWriterProcessing() {
+        writerHandler?.post(object : Runnable {
+            override fun run() {
+                if (!writerActive.get()) return
+
+                val frameData = frameQueue.poll(50, TimeUnit.MILLISECONDS)
+                if (frameData != null) {
+                    try {
+                        val writer = mlvWriter ?: return
+                        val timestampMicros = System.nanoTime() / 1000
+                        writer.writeFrame(frameData.bytes, frameData.frameIndex, timestampMicros)
+
+                        // Write index at recovery intervals
+                        if (frameData.frameIndex > 0 && frameData.frameIndex % RECOVERY_INTERVAL == 0) {
+                            // MLV doesn't have explicit index writes during recording
+                            // Index is written at finalization
+                        }
+
+                        // Report progress periodically
+                        if (frameData.frameIndex % 24 == 0) {
+                            notifyListeners("recordingProgress", JSObject().apply {
+                                put("frameCount", frameData.frameIndex)
+                                put("droppedFrames", droppedFrameCount.get())
+                                put("fileSize", writer.currentFileSize)
+                            })
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing MLV frame", e)
+                    }
+                }
+
+                // Re-post if still active
+                if (writerActive.get()) {
+                    writerHandler?.postDelayed(this, 1)
+                }
+            }
+        })
+    }
 
     @PluginMethod
     fun startLogVideoRecording(call: PluginCall) {

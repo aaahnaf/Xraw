@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { CaptureSettings, RecordingState, CameraInfo, AppError, Screen } from '../types';
+import { getResolutionDimensions } from '../types';
 import { NativeBridge } from '../utils/native-bridge';
 
 /**
@@ -25,7 +26,7 @@ export function useCamera() {
   const [initializing, setInitializing] = useState(true);
   
   const [settings, setSettings] = useState<CaptureSettings>({
-    resolution: { width: 1920, height: 1080 },
+    resolution: '1080p_open_gate',
     frameRate: 24,
     previewFrameRate: 30,
     exposureTime: null,
@@ -33,7 +34,7 @@ export function useCamera() {
     whiteBalance: null,
     focusDistance: null,
     zoom: 1.0,
-    mode: 'raw',
+    mode: 'mlv',
     logProfile: 'none',
     lutEnabled: false,
     lutPath: null,
@@ -217,27 +218,35 @@ export function useCamera() {
 
     try {
       let result;
+      const dims = getResolutionDimensions(settings.resolution);
       
       if (settings.mode === 'log_video') {
         // Log video mode - use MP4 encoder
         result = await NativeBridge.startLogVideoRecording({
-          width: settings.resolution.width,
-          height: settings.resolution.height,
+          width: dims.width,
+          height: dims.height,
           fps: settings.frameRate,
           logProfile: settings.logProfile,
+        });
+      } else if (settings.mode === 'mlv') {
+        // MLV mode - use MLV writer
+        result = await NativeBridge.startMlvRecording({
+          width: dims.width,
+          height: dims.height,
+          fps: settings.frameRate,
         });
       } else {
         // RAW mode - use XRAW/XRAWLC
         result = await NativeBridge.startRecording({
-          width: settings.resolution.width,
-          height: settings.resolution.height,
+          width: dims.width,
+          height: dims.height,
           fps: settings.frameRate,
           lossless: settings.losslessCompression,
         });
 
         if (result.sizeMismatch) {
           addError('SIZE_MISMATCH', 
-            `Actual resolution: ${result.width}×${result.height} (requested ${settings.resolution.width}×${settings.resolution.height})`,
+            `Actual resolution: ${result.width}×${result.height} (requested ${dims.width}×${dims.height})`,
             'warning', false);
         }
       }
