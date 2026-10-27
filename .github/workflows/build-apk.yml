@@ -40,14 +40,52 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '11.0'
+          log-accepted-licenses: true
+
+      - name: Verify Android SDK setup
+        run: |
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+          echo "Checking sdkmanager location..."
+          which sdkmanager || echo "sdkmanager not in PATH"
+          ls -la $ANDROID_HOME/cmdline-tools/ || echo "cmdline-tools directory not found"
+          
+          # Ensure sdkmanager is accessible
+          if ! command -v sdkmanager &> /dev/null; then
+            echo "sdkmanager not found in PATH, checking alternative locations..."
+            if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+              echo "Found sdkmanager at cmdline-tools/latest"
+              export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+            elif [ -d "$ANDROID_HOME/cmdline-tools" ]; then
+              # Find the actual version directory
+              CMDLINE_VERSION=$(ls $ANDROID_HOME/cmdline-tools/ | grep -v latest | head -n 1)
+              if [ -f "$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin/sdkmanager" ]; then
+                echo "Found sdkmanager at cmdline-tools/$CMDLINE_VERSION"
+                export PATH="$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin:$PATH"
+              fi
+            fi
+          fi
+          
+          # Verify sdkmanager is now accessible
+          which sdkmanager
+          sdkmanager --version
 
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses || true
+        run: |
+          echo "Accepting Android SDK licenses..."
+          yes | sdkmanager --licenses || exit 1
+          echo "✓ Licenses accepted successfully"
 
       - name: Install Android SDK components
         run: |
+          echo "Installing Android SDK components..."
           sdkmanager "platforms;android-${{ env.ANDROID_COMPILE_SDK }}"
           sdkmanager "build-tools;${{ env.ANDROID_BUILD_TOOLS }}"
+          sdkmanager "platform-tools"
+          echo "✓ SDK components installed successfully"
+          sdkmanager --list_installed
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -200,6 +238,49 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: '11.0'
+          log-accepted-licenses: true
+
+      - name: Verify Android SDK setup
+        run: |
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+          
+          # Ensure sdkmanager is accessible
+          if ! command -v sdkmanager &> /dev/null; then
+            echo "sdkmanager not found in PATH, checking alternative locations..."
+            if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+              echo "Found sdkmanager at cmdline-tools/latest"
+              export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+            elif [ -d "$ANDROID_HOME/cmdline-tools" ]; then
+              CMDLINE_VERSION=$(ls $ANDROID_HOME/cmdline-tools/ | grep -v latest | head -n 1)
+              if [ -f "$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin/sdkmanager" ]; then
+                echo "Found sdkmanager at cmdline-tools/$CMDLINE_VERSION"
+                export PATH="$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin:$PATH"
+              fi
+            fi
+          fi
+          
+          which sdkmanager
+          sdkmanager --version
+
+      - name: Accept Android SDK licenses
+        run: |
+          echo "Accepting Android SDK licenses..."
+          yes | sdkmanager --licenses || exit 1
+          echo "✓ Licenses accepted successfully"
+
+      - name: Install Android SDK components
+        run: |
+          echo "Installing Android SDK components..."
+          sdkmanager "platforms;android-${{ env.ANDROID_COMPILE_SDK }}"
+          sdkmanager "build-tools;${{ env.ANDROID_BUILD_TOOLS }}"
+          sdkmanager "platform-tools"
+          echo "✓ SDK components installed successfully"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
