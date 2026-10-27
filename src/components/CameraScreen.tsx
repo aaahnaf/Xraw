@@ -200,17 +200,9 @@ export function CameraScreen({
           {/* Log Profile Selector - Only in log_video mode */}
           {settings.mode === 'log_video' && (
             <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40">
-              <select
-                value={settings.logProfile}
-                onChange={(e) => onUpdateSetting('logProfile', e.target.value as LogProfile)}
-                className="px-3 py-1.5 rounded bg-black/80 border border-white/30 text-xs font-mono text-white"
-              >
-                {getAvailableProfiles().filter(p => p.id !== 'none').map(profile => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.name} {profile.approximate ? '(approx)' : ''}
-                  </option>
-                ))}
-              </select>
+              <div className="px-3 py-1.5 rounded bg-black/80 border border-amber-500/50 text-xs font-mono text-amber-400">
+                Log curves not yet implemented
+              </div>
             </div>
           )}
 

@@ -162,6 +162,10 @@ class MlvWriter(private val file: File) {
         buffer.flip()
         outputStream!!.write(buffer.array(), 0, blockSize)
         
+        // Update offset tracking
+        currentOffset += blockSize
+        currentFileSize = currentOffset
+        
         // Align to 64 bytes
         alignToBlock()
     }
@@ -212,6 +216,10 @@ class MlvWriter(private val file: File) {
         buffer.flip()
         outputStream!!.write(buffer.array(), 0, blockSize)
         
+        // Update offset tracking
+        currentOffset += blockSize
+        currentFileSize = currentOffset
+        
         alignToBlock()
     }
     
@@ -241,6 +249,10 @@ class MlvWriter(private val file: File) {
         buffer.putInt(blockSizePos, blockSize)
         buffer.flip()
         outputStream!!.write(buffer.array(), 0, blockSize)
+        
+        // Update offset tracking
+        currentOffset += blockSize
+        currentFileSize = currentOffset
         
         alignToBlock()
     }
@@ -274,6 +286,10 @@ class MlvWriter(private val file: File) {
         buffer.flip()
         outputStream!!.write(buffer.array(), 0, blockSize)
         
+        // Update offset tracking
+        currentOffset += blockSize
+        currentFileSize = currentOffset
+        
         alignToBlock()
     }
     
@@ -297,6 +313,10 @@ class MlvWriter(private val file: File) {
         buffer.putInt(blockSizePos, blockSize)
         buffer.flip()
         outputStream!!.write(buffer.array(), 0, blockSize)
+        
+        // Update offset tracking
+        currentOffset += blockSize
+        currentFileSize = currentOffset
         
         alignToBlock()
     }
@@ -328,6 +348,10 @@ class MlvWriter(private val file: File) {
         buffer.putInt(blockSizePos, blockSize)
         buffer.flip()
         outputStream!!.write(buffer.array(), 0, blockSize)
+        
+        // Update offset tracking
+        currentOffset += blockSize
+        currentFileSize = currentOffset
         
         alignToBlock()
     }
@@ -452,6 +476,10 @@ class MlvWriter(private val file: File) {
         buffer.putInt(blockSizePos, blockSize)
         buffer.flip()
         os.write(buffer.array(), 0, blockSize)
+        
+        // Update offset tracking
+        currentOffset += blockSize
+        currentFileSize = currentOffset
         
         alignToBlock()
     }

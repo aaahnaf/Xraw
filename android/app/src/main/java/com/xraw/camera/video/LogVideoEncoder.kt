@@ -14,8 +14,24 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Log Video Encoder
  * 
- * Encodes camera frames to MP4 with log curve transformation.
- * Uses OpenGL ES shaders for GPU-accelerated log curve application.
+ * CURRENT LIMITATION: This encoder does NOT actually apply log curve transformations.
+ * 
+ * The log-profile shaders (SLOG3_SHADER, CLOG3_SHADER, etc.) are defined but never used.
+ * The encoder uses COLOR_FormatSurface and passes camera frames directly to MediaCodec
+ * without any OpenGL processing. The output is standard Rec.709 video, not log-encoded.
+ * 
+ * To properly implement log profiles, this class would need:
+ * 1. EGL context creation and management
+ * 2. OpenGL shader compilation and linking
+ * 3. Texture creation from camera frames
+ * 4. Frame rendering through shaders to encoder input surface
+ * 5. Proper OpenGL lifecycle and synchronization
+ * 
+ * This is a significant architectural change that requires careful implementation.
+ * 
+ * TODO: Implement proper OpenGL pipeline for log curve application, or remove the
+ * log profile feature until it can be properly implemented.
+ * 
  * Uses MediaCodec for hardware-accelerated H.264/HEVC encoding.
  * Uses MediaMuxer for proper MP4 output.
  */

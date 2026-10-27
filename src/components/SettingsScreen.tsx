@@ -58,7 +58,7 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
               }}
             >
               <div className="text-sm font-medium text-white">LOG VIDEO</div>
-              <div className="text-xs mt-0.5 text-white/60">Processed video with log curve (.mp4)</div>
+              <div className="text-xs mt-0.5 text-white/60">MP4 recording (log curves not yet implemented)</div>
             </button>
           </div>
         </section>
