@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
-/* XRAW Camera - Premium Cinema Camera UI */
+/* XRAW Camera - Professional Cinema Camera UI */
 
 :root {
   /* Color System - Cinema Camera Inspired */
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #141414;
-  --bg-tertiary: #1a1a1a;
-  --bg-elevated: #1f1f1f;
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #141414;
+  --bg-elevated: #1a1a1a;
   
-  --text-primary: #f5f5f0;
-  --text-secondary: #8a8a8a;
-  --text-tertiary: #5a5a5a;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #606060;
   
-  --accent-recording: #c41e3a;
+  --accent-recording: #dc2626;
   --accent-active: #d4a574;
-  --accent-success: #4a9d5f;
-  --accent-warning: #d4a574;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
   
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-medium: rgba(255, 255, 255, 0.12);
@@ -131,11 +131,11 @@ input[type="range"]::-moz-range-thumb {
 @keyframes recording-pulse {
   0%, 100% { 
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(196, 30, 58, 0.7);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
   }
   50% { 
     opacity: 0.8;
-    box-shadow: 0 0 0 8px rgba(196, 30, 58, 0);
+    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
   }
 }
 

@@ -42,59 +42,8 @@ function App() {
     );
   }
 
-  // Show unavailable state when native plugin is not present
-  if (!nativeAvailable) {
-    return (
-      <div className="w-screen h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
-        <div className="text-center space-y-6 max-w-sm px-8">
-          <div className="space-y-2">
-            <div className="text-xl font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>XRAW CAMERA</div>
-          </div>
-          <div className="text-sm leading-relaxed" style={{ color: 'var(--accent-warning)' }}>
-            Native camera plugin not available.
-          </div>
-          <div className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            This interface requires the Android native build.
-          </div>
-          <div className="text-xs leading-relaxed pt-4" style={{ color: 'var(--text-tertiary)' }}>
-            To use XRAW Camera:<br />
-            1. Push this project to GitHub<br />
-            2. Run the "Build XRAW Camera APK" workflow<br />
-            3. Install the APK on your Android device<br />
-            4. Open the app from the home screen
-          </div>
-          <button
-            onClick={() => setScreen('about')}
-            className="mt-6 px-6 py-3 rounded-lg text-sm font-medium transition-colors"
-            style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-          >
-            View App Info
-          </button>
-        </div>
-        
-        {/* Error display */}
-        {errors.length > 0 && (
-          <div className="fixed top-4 left-4 right-4 space-y-2">
-            {errors.slice(-3).map((error, i) => (
-              <div key={`${error.timestamp}-${i}`} className="px-4 py-3 rounded-lg text-sm" style={{ background: 'var(--bg-secondary)', color: 'var(--accent-warning)', border: '1px solid var(--border-subtle)' }}>
-                {error.message}
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {/* Nav */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 py-3 flex justify-around" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)' }}>
-          <NavButton label="Camera" active={screen === 'camera'} onClick={() => setScreen('camera')} />
-          <NavButton label="Diagnostics" active={screen === 'diagnostics'} onClick={() => setScreen('diagnostics')} />
-          <NavButton label="Settings" active={screen === 'settings'} onClick={() => setScreen('settings')} />
-          <NavButton label="About" active={screen === 'about'} onClick={() => setScreen('about')} />
-        </nav>
-        
-        {screen === 'about' && <AboutScreen onBack={() => setScreen('camera')} />}
-      </div>
-    );
-  }
+  // Browser mode: Show redesigned UI with native-unavailable indicator
+  // Do NOT early return - always show the redesigned interface
 
   // Default camera info for when native is available but camera not yet enumerated
   const defaultCameraInfo = cameraInfo || {

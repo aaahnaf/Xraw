@@ -89,6 +89,8 @@ export function CameraScreen({
     }
   };
 
+  const dims = getResolutionDimensions(settings.resolution);
+
   return (
     <div className="relative w-full h-full overflow-hidden select-none bg-black">
       {/* Native Camera Preview - transparent to show native view */}
@@ -105,7 +107,7 @@ export function CameraScreen({
         </div>
       )}
 
-      {/* Native Unavailable */}
+      {/* Native Unavailable Overlay */}
       {!nativeAvailable && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
           <div className="text-center space-y-3 px-8">
@@ -123,15 +125,20 @@ export function CameraScreen({
       )}
 
       {/* Controls Layer */}
-      {showControls && nativeAvailable && (
+      {showControls && (
         <>
-          {/* Top Status Bar */}
+          {/* Top Status Bar - Compact */}
           <div className="absolute top-0 left-0 right-0 z-40 px-4 py-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {/* Mode Selector */}
                 <button
-                  onClick={() => onUpdateSetting('mode', settings.mode === 'raw' ? 'log_video' : 'raw')}
+                  onClick={() => {
+                    const modes: Array<'raw' | 'mlv' | 'log_video'> = ['raw', 'mlv', 'log_video'];
+                    const currentIndex = modes.indexOf(settings.mode);
+                    const nextIndex = (currentIndex + 1) % modes.length;
+                    onUpdateSetting('mode', modes[nextIndex]);
+                  }}
                   className="px-3 py-1.5 rounded bg-white/10 border border-white/30 hover:border-white/60 text-white font-medium text-xs transition-colors"
                 >
                   {getModeLabel()}
@@ -139,10 +146,7 @@ export function CameraScreen({
 
                 {/* Resolution & FPS */}
                 <div className="text-xs font-mono text-white/70">
-                  {(() => {
-                    const dims = getResolutionDimensions(settings.resolution);
-                    return `${dims.width}×${dims.height} @ ${settings.frameRate}fps`;
-                  })()}
+                  {dims.width}×{dims.height} @ {settings.frameRate}fps
                 </div>
 
                 {/* Preview FPS */}
@@ -448,7 +452,7 @@ export function CameraScreen({
               {/* Mode Indicator */}
               <div className="w-14 h-14 rounded-full border-2 border-white/30 flex items-center justify-center bg-black/50">
                 <span className="text-[9px] font-mono font-medium text-white/70">
-                  {settings.mode === 'raw' ? 'RAW' : 'LOG'}
+                  {settings.mode === 'raw' ? 'RAW' : settings.mode === 'mlv' ? 'MLV' : 'LOG'}
                 </span>
               </div>
             </div>
