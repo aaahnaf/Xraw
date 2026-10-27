@@ -39,44 +39,7 @@ jobs:
           cache: 'gradle'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: '11.0'
-          log-accepted-licenses: true
-
-      - name: Verify Android SDK setup
-        run: |
-          echo "ANDROID_HOME: $ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-          echo "Checking sdkmanager location..."
-          which sdkmanager || echo "sdkmanager not in PATH"
-          ls -la $ANDROID_HOME/cmdline-tools/ || echo "cmdline-tools directory not found"
-          
-          # Ensure sdkmanager is accessible
-          if ! command -v sdkmanager &> /dev/null; then
-            echo "sdkmanager not found in PATH, checking alternative locations..."
-            if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-              echo "Found sdkmanager at cmdline-tools/latest"
-              export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-            elif [ -d "$ANDROID_HOME/cmdline-tools" ]; then
-              # Find the actual version directory
-              CMDLINE_VERSION=$(ls $ANDROID_HOME/cmdline-tools/ | grep -v latest | head -n 1)
-              if [ -f "$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin/sdkmanager" ]; then
-                echo "Found sdkmanager at cmdline-tools/$CMDLINE_VERSION"
-                export PATH="$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin:$PATH"
-              fi
-            fi
-          fi
-          
-          # Verify sdkmanager is now accessible
-          which sdkmanager
-          sdkmanager --version
-
-      - name: Accept Android SDK licenses
-        run: |
-          echo "Accepting Android SDK licenses..."
-          yes | sdkmanager --licenses || exit 1
-          echo "✓ Licenses accepted successfully"
+        uses: android-actions/setup-android@v4
 
       - name: Install Android SDK components
         run: |
@@ -240,39 +203,7 @@ jobs:
           cache: 'gradle'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: '11.0'
-          log-accepted-licenses: true
-
-      - name: Verify Android SDK setup
-        run: |
-          echo "ANDROID_HOME: $ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-          
-          # Ensure sdkmanager is accessible
-          if ! command -v sdkmanager &> /dev/null; then
-            echo "sdkmanager not found in PATH, checking alternative locations..."
-            if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-              echo "Found sdkmanager at cmdline-tools/latest"
-              export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-            elif [ -d "$ANDROID_HOME/cmdline-tools" ]; then
-              CMDLINE_VERSION=$(ls $ANDROID_HOME/cmdline-tools/ | grep -v latest | head -n 1)
-              if [ -f "$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin/sdkmanager" ]; then
-                echo "Found sdkmanager at cmdline-tools/$CMDLINE_VERSION"
-                export PATH="$ANDROID_HOME/cmdline-tools/$CMDLINE_VERSION/bin:$PATH"
-              fi
-            fi
-          fi
-          
-          which sdkmanager
-          sdkmanager --version
-
-      - name: Accept Android SDK licenses
-        run: |
-          echo "Accepting Android SDK licenses..."
-          yes | sdkmanager --licenses || exit 1
-          echo "✓ Licenses accepted successfully"
+        uses: android-actions/setup-android@v4
 
       - name: Install Android SDK components
         run: |
