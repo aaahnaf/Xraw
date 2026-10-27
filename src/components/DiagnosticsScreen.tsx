@@ -13,16 +13,16 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 bg-neutral-900 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-white">Diagnostics</h1>
+          <h1 className="text-lg font-semibold text-white truncate">Diagnostics</h1>
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
+      <div className="px-4 py-6 space-y-6 pb-8">
         {/* Camera Identity */}
         <section className="p-4 rounded-xl bg-neutral-900">
           <h2 className="text-xs font-semibold mb-3 text-white/60 tracking-wider">CAMERA IDENTITY</h2>
@@ -158,9 +158,9 @@ function InfoRow({ label, value, status }: { label: string; value: string; statu
   };
 
   return (
-    <div className="flex justify-between items-center py-1">
-      <span className="text-sm text-white/60">{label}</span>
-      <span className={`text-sm font-medium ${status ? statusColor[status] : 'text-white'}`}>{value}</span>
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 gap-1">
+      <span className="text-sm text-white/60 sm:min-w-[140px]">{label}</span>
+      <span className={`text-sm font-medium break-words ${status ? statusColor[status] : 'text-white'}`}>{value}</span>
     </div>
   );
 }

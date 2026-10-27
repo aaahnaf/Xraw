@@ -8,16 +8,16 @@ export function AboutScreen({ onBack }: Props) {
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 bg-neutral-900 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-white">About</h1>
+          <h1 className="text-lg font-semibold text-white truncate">About</h1>
         </div>
       </div>
 
-      <div className="px-4 py-8 space-y-8">
+      <div className="px-4 py-6 space-y-6 pb-8">
         {/* App Identity */}
         <div className="text-center space-y-3 py-8">
           <div className="text-2xl font-bold tracking-wider text-white">XRAW</div>
@@ -101,9 +101,9 @@ export function AboutScreen({ onBack }: Props) {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center py-1">
-      <span className="text-sm text-white/60">{label}</span>
-      <span className="text-sm font-medium text-white">{value}</span>
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 gap-1">
+      <span className="text-sm text-white/60 sm:text-right sm:min-w-[120px]">{label}</span>
+      <span className="text-sm font-medium text-white break-words">{value}</span>
     </div>
   );
 }

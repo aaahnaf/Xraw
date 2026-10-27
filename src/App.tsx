@@ -56,49 +56,83 @@ function App() {
     sensorInfo: null,
   };
 
+  // Determine if we should show bottom navigation
+  const showBottomNav = screen !== 'camera';
+  
   return (
-    <div className="w-screen h-screen overflow-hidden relative" style={{ background: 'var(--bg-primary)' }}>
-      {/* Main Content */}
-      {screen === 'camera' && (
-        <CameraScreen
-          cameraInfo={defaultCameraInfo}
-          settings={settings}
-          recording={recording}
-          previewActive={previewActive}
-          nativeAvailable={nativeAvailable}
-          onStartRecording={startRecording}
-          onStopRecording={stopRecording}
-          onCaptureStill={captureRawStill}
-          onUpdateSetting={updateSetting}
-          onOpenDiagnostics={() => setScreen('diagnostics')}
-          onOpenSettings={() => setScreen('settings')}
-        />
-      )}
-      
-      {screen === 'diagnostics' && (
-        <DiagnosticsScreen
-          cameraInfo={defaultCameraInfo}
-          onBack={() => setScreen('camera')}
-        />
-      )}
-      
-      {screen === 'settings' && (
-        <SettingsScreen
-          settings={settings}
-          onUpdateSetting={updateSetting}
-          onBack={() => setScreen('camera')}
-        />
-      )}
-      
-      {screen === 'about' && (
-        <AboutScreen
-          onBack={() => setScreen('camera')}
-        />
+    <div 
+      className="w-full h-full flex flex-col overflow-hidden relative" 
+      style={{ 
+        background: 'var(--bg-primary)',
+        height: '100dvh',
+        paddingBottom: showBottomNav ? '64px' : '0' // Reserve space for bottom nav
+      }}
+    >
+      {/* Native unavailable banner - compact, non-blocking */}
+      {!nativeAvailable && (
+        <div 
+          className="w-full px-4 py-2 text-center text-xs"
+          style={{ 
+            background: 'var(--bg-tertiary)',
+            color: 'var(--accent-warning)',
+            borderBottom: '1px solid var(--border-subtle)'
+          }}
+        >
+          Browser mode • Install APK for camera access
+        </div>
       )}
 
-      {/* Navigation Bar - Only show on non-camera screens */}
-      {(screen === 'diagnostics' || screen === 'settings' || screen === 'about') && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 px-4 py-3 flex justify-around" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)' }}>
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-hidden relative">
+        {screen === 'camera' && (
+          <CameraScreen
+            cameraInfo={defaultCameraInfo}
+            settings={settings}
+            recording={recording}
+            previewActive={previewActive}
+            nativeAvailable={nativeAvailable}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+            onCaptureStill={captureRawStill}
+            onUpdateSetting={updateSetting}
+            onOpenDiagnostics={() => setScreen('diagnostics')}
+            onOpenSettings={() => setScreen('settings')}
+          />
+        )}
+        
+        {screen === 'diagnostics' && (
+          <DiagnosticsScreen
+            cameraInfo={defaultCameraInfo}
+            onBack={() => setScreen('camera')}
+          />
+        )}
+        
+        {screen === 'settings' && (
+          <SettingsScreen
+            settings={settings}
+            onUpdateSetting={updateSetting}
+            onBack={() => setScreen('camera')}
+          />
+        )}
+        
+        {screen === 'about' && (
+          <AboutScreen
+            onBack={() => setScreen('camera')}
+          />
+        )}
+      </div>
+
+      {/* Bottom Navigation - Only show on non-camera screens */}
+      {showBottomNav && (
+        <nav 
+          className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch"
+          style={{ 
+            background: 'var(--bg-secondary)',
+            borderTop: '1px solid var(--border-subtle)',
+            height: '64px',
+            paddingBottom: 'env(safe-area-inset-bottom)' // Handle iPhone notch etc
+          }}
+        >
           <NavButton label="Camera" active={false} onClick={() => setScreen('camera')} />
           <NavButton label="Diagnostics" active={screen === 'diagnostics'} onClick={() => setScreen('diagnostics')} />
           <NavButton label="Settings" active={screen === 'settings'} onClick={() => setScreen('settings')} />
@@ -140,13 +174,13 @@ function NavButton({ label, active, onClick }: { label: string; active: boolean;
   return (
     <button
       onClick={onClick}
-      className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+      className="flex-1 flex items-center justify-center py-2 text-xs sm:text-sm font-medium transition-colors min-w-0"
       style={{
         color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
         background: active ? 'var(--bg-tertiary)' : 'transparent'
       }}
     >
-      {label}
+      <span className="truncate px-2">{label}</span>
     </button>
   );
 }

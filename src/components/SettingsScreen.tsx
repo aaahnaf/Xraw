@@ -13,16 +13,16 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 bg-neutral-900 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-white">Settings</h1>
+          <h1 className="text-lg font-semibold text-white truncate">Settings</h1>
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-8">
+      <div className="px-4 py-6 space-y-6 pb-8">
         {/* Capture Mode Section */}
         <section>
           <h2 className="text-xs font-semibold mb-3 px-1 text-white/60 tracking-wider">CAPTURE MODE</h2>
