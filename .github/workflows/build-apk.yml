@@ -127,33 +127,11 @@ jobs:
           mkdir -p android/app/src/main/assets/public
           cp -r dist/* android/app/src/main/assets/public/
 
-      - name: Setup Gradle wrapper
-        working-directory: android
-        run: |
-          # Ensure gradle wrapper directory exists
-          mkdir -p gradle/wrapper
-          
-          # Download Gradle wrapper JAR from official Gradle distribution
-          # Using the specific version to ensure compatibility
-          WRAPPER_JAR_URL="https://github.com/gradle/gradle/raw/v${{ env.GRADLE_VERSION }}/gradle/wrapper/gradle-wrapper.jar"
-          echo "Downloading Gradle wrapper JAR from: $WRAPPER_JAR_URL"
-          curl -L -o gradle/wrapper/gradle-wrapper.jar "$WRAPPER_JAR_URL"
-          
-          # Verify the JAR was downloaded
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "ERROR: Failed to download gradle-wrapper.jar"
-            exit 1
-          fi
-          
-          # Make gradlew executable
-          chmod +x gradlew
-          
-          # Verify wrapper files
-          ls -lh gradle/wrapper/
-          ls -lh gradlew
-          
-          # Test that gradlew can at least show help
-          ./gradlew --version || echo "Gradle wrapper test completed"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+          build-root-directory: android
 
       - name: Build debug APK
         if: github.event.inputs.build_type != 'release'
@@ -340,13 +318,11 @@ jobs:
       - name: Run frontend type check
         run: npm run typecheck
 
-      - name: Setup Gradle wrapper
-        working-directory: android
-        run: |
-          mkdir -p gradle/wrapper
-          WRAPPER_JAR_URL="https://github.com/gradle/gradle/raw/v${{ env.GRADLE_VERSION }}/gradle/wrapper/gradle-wrapper.jar"
-          curl -L -o gradle/wrapper/gradle-wrapper.jar "$WRAPPER_JAR_URL"
-          chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+          build-root-directory: android
 
       - name: Run unit tests
         working-directory: android
