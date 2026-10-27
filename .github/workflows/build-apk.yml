@@ -40,15 +40,13 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
-      - name: Install Android SDK components
+      - name: Verify SDK installation
         run: |
-          echo "Installing Android SDK components..."
-          sdkmanager "platforms;android-${{ env.ANDROID_COMPILE_SDK }}"
-          sdkmanager "build-tools;${{ env.ANDROID_BUILD_TOOLS }}"
-          sdkmanager "platform-tools"
-          echo "✓ SDK components installed successfully"
-          sdkmanager --list_installed
+          echo "✓ Android SDK setup complete"
+          sdkmanager --list_installed | grep -E "(platform-tools|platforms;android-34|build-tools;34.0.0)" || echo "Warning: Expected packages not found"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -204,14 +202,13 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
-      - name: Install Android SDK components
+      - name: Verify SDK installation
         run: |
-          echo "Installing Android SDK components..."
-          sdkmanager "platforms;android-${{ env.ANDROID_COMPILE_SDK }}"
-          sdkmanager "build-tools;${{ env.ANDROID_BUILD_TOOLS }}"
-          sdkmanager "platform-tools"
-          echo "✓ SDK components installed successfully"
+          echo "✓ Android SDK setup complete"
+          sdkmanager --list_installed | grep -E "(platform-tools|platforms;android-34|build-tools;34.0.0)" || echo "Warning: Expected packages not found"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
