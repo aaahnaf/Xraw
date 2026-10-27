@@ -277,6 +277,8 @@ export function useCamera() {
       
       if (settings.mode === 'log_video') {
         result = await NativeBridge.stopLogVideoRecording();
+      } else if (settings.mode === 'mlv') {
+        result = await NativeBridge.stopMlvRecording();
       } else {
         result = await NativeBridge.stopRecording();
       }
