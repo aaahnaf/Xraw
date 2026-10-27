@@ -53,7 +53,6 @@ jobs:
         uses: android-actions/setup-android@v4
         with:
           packages: |
-            cmdline-tools;latest
             platform-tools
             platforms;android-34
             build-tools;34.0.0
@@ -69,13 +68,6 @@ jobs:
           
           # Check each required package and fail if missing
           MISSING=0
-          
-          if ! sdkmanager --list_installed | grep -q "cmdline-tools"; then
-            echo "✗ ERROR: cmdline-tools not installed"
-            MISSING=1
-          else
-            echo "✓ cmdline-tools installed"
-          fi
           
           if ! sdkmanager --list_installed | grep -q "platform-tools"; then
             echo "✗ ERROR: platform-tools not installed"
@@ -252,7 +244,6 @@ jobs:
         uses: android-actions/setup-android@v4
         with:
           packages: |
-            cmdline-tools;latest
             platform-tools
             platforms;android-34
             build-tools;34.0.0
@@ -268,13 +259,6 @@ jobs:
           
           # Check each required package and fail if missing
           MISSING=0
-          
-          if ! sdkmanager --list_installed | grep -q "cmdline-tools"; then
-            echo "✗ ERROR: cmdline-tools not installed"
-            MISSING=1
-          else
-            echo "✓ cmdline-tools installed"
-          fi
           
           if ! sdkmanager --list_installed | grep -q "platform-tools"; then
             echo "✗ ERROR: platform-tools not installed"
