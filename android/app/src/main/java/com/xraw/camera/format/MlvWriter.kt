@@ -336,7 +336,7 @@ class MlvWriter(private val file: File) {
      * Write a single video frame
      */
     @Synchronized
-    fun writeFrame( ByteArray, frameIndex: Int, timestampMicros: Long) {
+    fun writeFrame(data: ByteArray, frameIndex: Int, timestampMicros: Long) {
         val os = outputStream ?: throw IllegalStateException("Writer not initialized")
         if (isFinalized) throw IllegalStateException("Writer already finalized")
         
@@ -424,7 +424,10 @@ class MlvWriter(private val file: File) {
     private fun writeIndxBlock() {
         val os = outputStream ?: return
         
-        val buffer = ByteBuffer.allocate(64 + frameIndex.size * 16)
+        // Calculate actual size: 4 (magic) + 4 (size) + 4 (count) + entries * 20 bytes each
+        // Each entry: 4 (frameIndex) + 8 (fileOffset) + 8 (timestamp) = 20 bytes
+        val bufferSize = 12 + frameIndex.size * 20
+        val buffer = ByteBuffer.allocate(bufferSize)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         
         // Block header

@@ -256,13 +256,15 @@ class XRawWriter(private val file: File) {
     @Synchronized
     fun finalizeFile() {
         if (isFinalized) return
-        isFinalized = true
 
         val os = outputStream ?: return
 
         try {
-            // Write final index
+            // Write final index BEFORE setting isFinalized flag
             writeIndex()
+
+            // Now mark as finalized
+            isFinalized = true
 
             // Flush and close the output stream
             os.flush()
