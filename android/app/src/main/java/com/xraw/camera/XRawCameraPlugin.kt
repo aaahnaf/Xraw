@@ -120,9 +120,20 @@ class XRawCameraPlugin : Plugin() {
 
     @PluginMethod
     override fun requestPermissions(call: PluginCall) {
-        // In Capacitor 5, use requestPermissionForAliases to request multiple permissions
-        // by their aliases defined in the @CapacitorPlugin annotation
-        requestPermissionForAliases(arrayOf("camera", "microphone"), call, 1001)
+        // Use Android's native permission request mechanism
+        val perms = mutableListOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
+        if (Build.VERSION.SDK_INT < 33) {
+            perms.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            perms.add(Manifest.permission.READ_MEDIA_IMAGES)
+            perms.add(Manifest.permission.READ_MEDIA_VIDEO)
+        }
+        
+        activity.requestPermissions(perms.toTypedArray(), 1001)
+        call.resolve()
     }
 
     // ==================== CAMERA ENUMERATION ====================
