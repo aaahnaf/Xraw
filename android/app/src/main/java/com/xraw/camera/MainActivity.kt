@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.Plugin
 
 /**
  * XRAW Camera - Main Activity
@@ -23,6 +24,12 @@ class MainActivity : BridgeActivity() {
         // BridgeActivity creates its own WebView internally
         // We add the camera preview behind it programmatically
         setupCameraPreview()
+    }
+    
+    override fun registerPlugins() {
+        // Explicitly register the XRawCamera plugin
+        // This ensures the plugin is available to the web frontend
+        bridge?.addPlugin(XRawCameraPlugin::class.java)
     }
     
     private fun setupCameraPreview() {
