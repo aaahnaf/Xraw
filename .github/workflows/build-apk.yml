@@ -41,8 +41,6 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
-        with:
-          cmdline-tools-version: '11.0'
 
       - name: Install required SDK packages
         shell: bash
@@ -190,8 +188,6 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
-        with:
-          cmdline-tools-version: '11.0'
 
       - name: Install required SDK packages
         shell: bash

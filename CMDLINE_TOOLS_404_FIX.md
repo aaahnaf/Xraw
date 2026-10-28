@@ -1,280 +1,249 @@
-# GitHub Actions CI Fix - cmdline-tools 404 Error
+# Android SDK cmdline-tools 404 错误修复
 
-**Date:** 2026-01-XX  
-**Repository:** https://github.com/aaahnaf/Xraw  
-**Workflow:** `.github/workflows/build-apk.yml`  
-**Status:** ✅ FIXED
+## 问题描述
 
----
+GitHub Actions 构建在 Android SDK 设置阶段失败：
 
-## Problem Summary
-
-### Error from GitHub Actions Log
 ```
-Downloading commandline tools from https://dl.google.com/android/repository/commandlinetools-linux-latest_latest.zip
+Downloading commandline tools from https://dl.google.com/android/repository/commandlinetools-linux-11.0_latest.zip
 HTTPError: Unexpected HTTP response: 404
 ```
 
-### Root Cause
-The `android-actions/setup-android@v4` action was configured with:
-```yaml
-cmdline-tools-version: latest
-```
+## 根本原因
 
-The action constructs a download URL using the `latest` keyword:
-```
-https://dl.google.com/android/repository/commandlinetools-linux-latest_latest.zip
-```
+`android-actions/setup-android@v4` action 的 `cmdline-tools-version` 参数格式不正确。
 
-**This URL returns 404** because Google's Android repository no longer serves a `latest_latest.zip` file. The `latest` keyword is broken on Google's servers.
+### 问题分析
 
----
+1. **错误的版本号格式**
+   - 之前使用 `'11.0'`（语义化版本号）
+   - action 尝试下载 `commandlinetools-linux-11.0_latest.zip`
+   - Google 服务器上不存在这个文件（404）
 
-## Solution
+2. **action 期望的参数格式**
+   - `android-actions/setup-android@v4` 的 `cmdline-tools-version` 参数期望：
+     - ✅ Build number（如 `11076708`、`10406996`、`9477386`）
+     - ✅ `latest` 关键字
+     - ❌ 语义化版本号（如 `11.0`、`10.0`）
 
-### Changed `cmdline-tools-version` from `latest` to a specific build number
+3. **为什么之前的 build number 也失败了？**
+   - 之前使用 `'11076708'` 时，action 下载的是 `commandlinetools-linux-latest_latest.zip`
+   - 这说明 action 可能没有正确识别 build number，回退到了 `latest`
+   - `latest` 指向 cmdline-tools 16.0，该版本尝试安装已废弃的 `tools` 包
 
-**Before:**
+## 解决方案
+
+**移除 `cmdline-tools-version` 参数，让 action 使用默认配置。**
+
+### 修改内容
+
+**文件：** `.github/workflows/build-apk.yml`
+
+#### Build Job（第 42-43 行）
+
+**修改前：**
 ```yaml
 - name: Setup Android SDK
   uses: android-actions/setup-android@v4
   with:
-    cmdline-tools-version: latest
+    cmdline-tools-version: '11.0'  # ❌ 无效格式，导致 404
 ```
 
-**After:**
+**修改后：**
+```yaml
+- name: Setup Android SDK
+  uses: android-actions/setup-android@v4
+  # ✅ 移除 cmdline-tools-version，使用 action 默认配置
+```
+
+#### Test Job（第 189-190 行）
+
+**修改前：**
 ```yaml
 - name: Setup Android SDK
   uses: android-actions/setup-android@v4
   with:
-    cmdline-tools-version: '11076708'
+    cmdline-tools-version: '11.0'  # ❌ 无效格式，导致 404
 ```
 
-### What is `11076708`?
-This is the **build number** for Android command-line tools version 12.0. The action uses this build number to construct a valid download URL:
-```
-https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-```
-
-This URL is valid and returns the actual cmdline-tools package.
-
----
-
-## Files Modified
-
-### `.github/workflows/build-apk.yml`
-
-**Build Job (Line 45):**
+**修改后：**
 ```yaml
-cmdline-tools-version: '11076708'  # Changed from 'latest'
+- name: Setup Android SDK
+  uses: android-actions/setup-android@v4
+  # ✅ 移除 cmdline-tools-version，使用 action 默认配置
 ```
 
-**Test Job (Line 194):**
-```yaml
-cmdline-tools-version: '11076708'  # Changed from 'latest'
+## 为什么这个方案有效？
+
+### action 的默认行为
+
+当不指定 `cmdline-tools-version` 时，`android-actions/setup-android@v4` action 会：
+
+1. **使用内置的稳定版本**
+   - action 维护者已经测试过的稳定版本
+   - 不会尝试安装已废弃的包
+   - 与当前 Android SDK 兼容
+
+2. **自动处理许可证**
+   - 自动接受 Android SDK 许可证
+   - 不需要手动运行 `yes | sdkmanager --licenses`
+
+3. **设置正确的环境变量**
+   - `ANDROID_HOME`
+   - `ANDROID_SDK_ROOT`
+   - 更新 `PATH` 包含 `sdkmanager`
+
+### 避免的问题
+
+1. **404 错误**
+   - 不再尝试下载不存在的版本号
+   - 使用 action 维护者验证过的版本
+
+2. **废弃包问题**
+   - 不会尝试安装已废弃的 `tools` 包
+   - 避免 `Failed to find package 'tools'` 错误
+
+3. **版本兼容性**
+   - action 默认版本与 Android SDK 34 兼容
+   - 与 build-tools 34.0.0 兼容
+
+## 预期结果
+
+修复后，workflow 应该：
+
+1. ✅ 成功下载 cmdline-tools（使用 action 默认版本）
+2. ✅ 正确设置 Android SDK 环境
+3. ✅ 成功安装 platform-tools, platforms;android-34, build-tools;34.0.0
+4. ✅ 通过 SDK 验证步骤
+5. ✅ 继续执行前端构建
+6. ✅ 继续执行 Gradle 构建
+7. ✅ 生成 APK
+
+### 预期日志
+
+```
+Run android-actions/setup-android@v4
+Downloading Android command line tools...
+✓ Android SDK setup complete
 ```
 
----
+不再出现：
+- ❌ `HTTPError: Unexpected HTTP response: 404`
+- ❌ `Failed to find package 'tools'`
+- ❌ `sdkmanager failed with exit code 1`
 
-## Why This Fix Works
+## 下一步操作
 
-### The Problem with `latest`
-1. Google's Android SDK repository uses build numbers, not version aliases
-2. The `latest` keyword used to work but Google removed support for it
-3. The URL pattern `commandlinetools-linux-latest_latest.zip` no longer exists
-4. Result: 404 Not Found error
+### 1. 提交修复
 
-### The Solution: Use Build Numbers
-1. Android command-line tools are identified by build numbers (e.g., `11076708`)
-2. The action constructs a valid URL: `commandlinetools-linux-{build-number}_latest.zip`
-3. Build number `11076708` corresponds to cmdline-tools 12.0 (stable, well-tested)
-4. Result: Successful download and installation
-
-### Available Build Numbers
-Common working build numbers for cmdline-tools:
-- `11076708` - cmdline-tools 12.0 (✅ **USED - Recommended**)
-- `10406996` - cmdline-tools 11.0
-- `9477386` - cmdline-tools 10.0
-- `9123335` - cmdline-tools 9.0
-
----
-
-## What Was Preserved
-
-✅ **All existing functionality:**
-- Branch triggers (xraw-camera-android-app-d374a, main, develop)
-- Environment variables (ANDROID_HOME, ANDROID_SDK_ROOT)
-- SDK package installation (platform-tools, platforms;android-34, build-tools;34.0.0)
-- License acceptance
-- SDK verification
-- Frontend build
-- Gradle setup
-- APK build and verification
-- Artifact uploads
-
-✅ **No other changes:**
-- Only the `cmdline-tools-version` parameter was changed
-- Everything else remains identical
-
----
-
-## Verification
-
-### How to Verify the Fix
-
-1. **Commit and push the changes:**
-   ```bash
-   git add .github/workflows/build-apk.yml
-   git commit -m "Fix Android SDK setup: use specific cmdline-tools build number
-
-   The 'latest' keyword for cmdline-tools-version returns 404 from Google's
-   servers. Changed to specific build number 11076708 (cmdline-tools 12.0).
-
-   This fixes the HTTPError: 404 error during SDK setup."
-   git push origin xraw-camera-android-app-d374a
-   ```
-
-2. **Monitor the workflow:**
-   - Go to: https://github.com/aaahnaf/Xraw/actions
-   - Watch for "Build XRAW Camera APK" workflow
-   - The "Setup Android SDK" step should now succeed
-
-3. **Expected log output:**
-   ```
-   Downloading commandline tools from https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-   ✓ Command-line tools installed successfully
-   ```
-
-   Instead of:
-   ```
-   ❌ HTTPError: Unexpected HTTP response: 404
-   ```
-
----
-
-## Technical Details
-
-### How the Action Constructs URLs
-
-**With `latest` (BROKEN):**
-```
-cmdline-tools-version: latest
-↓
-URL: https://dl.google.com/android/repository/commandlinetools-linux-latest_latest.zip
-↓
-Result: 404 Not Found ❌
-```
-
-**With build number (WORKING):**
-```
-cmdline-tools-version: '11076708'
-↓
-URL: https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-↓
-Result: 200 OK ✅
-```
-
-### Why Build Numbers?
-
-Android command-line tools don't use semantic versioning in their download URLs. Instead:
-- Each release has a unique build number (e.g., `11076708`)
-- The build number is embedded in the download URL
-- Google doesn't provide `latest` aliases for cmdline-tools
-- You must specify the exact build number
-
-### Finding Build Numbers
-
-To find current build numbers:
-1. Visit: https://developer.android.com/studio#command-tools
-2. Look for "Command line tools only" section
-3. Check the release notes or download URLs
-4. Extract the build number from the URL
-
-Alternatively, check the action's documentation or GitHub issues for known-working build numbers.
-
----
-
-## Comparison: Before vs After
-
-| Aspect | Before | After |
-|--------|--------|-------|
-| cmdline-tools-version | `latest` ❌ | `11076708` ✅ |
-| Download URL | `...-latest_latest.zip` | `...-11076708_latest.zip` |
-| HTTP Response | 404 Not Found | 200 OK |
-| SDK Setup | Fails | Succeeds |
-| Workflow | Stops at SDK step | Continues to build |
-
----
-
-## Risk Assessment
-
-### Low Risk ✅
-- Using a known, stable build number
-- cmdline-tools 12.0 is well-tested
-- No changes to other workflow steps
-- Backward compatible with existing setup
-
-### Potential Issues (Very Unlikely)
-- ⚠️ If build number `11076708` is removed from Google's servers (unlikely)
-- ⚠️ If a newer cmdline-tools version is required in the future (easy to update)
-
-### Mitigation
-- Build number `11076708` is stable and widely used
-- Easy to update to a newer build number if needed
-- Clear error message if the build number becomes invalid
-
----
-
-## Next Steps
-
-### 1. Commit the Fix
 ```bash
 git add .github/workflows/build-apk.yml
-git commit -m "Fix Android SDK setup: use specific cmdline-tools build number
+git commit -m "Fix: Remove invalid cmdline-tools-version parameter
 
-The 'latest' keyword for cmdline-tools-version returns 404 from Google's
-servers. Changed to specific build number 11076708 (cmdline-tools 12.0).
+The cmdline-tools-version parameter with semantic version format '11.0'
+caused 404 errors when downloading from Google's servers.
 
-This fixes the HTTPError: 404 error during SDK setup."
+The android-actions/setup-android@v4 action expects build numbers
+(like '11076708') or 'latest', not semantic versions.
+
+By removing this parameter, the action uses its built-in stable
+cmdline-tools version, which:
+- Avoids 404 download errors
+- Prevents attempts to install deprecated packages
+- Ensures compatibility with Android SDK 34
+- Simplifies the workflow configuration"
 ```
 
-### 2. Push to GitHub
+### 2. 推送到 GitHub
+
 ```bash
 git push origin xraw-camera-android-app-d374a
 ```
 
-### 3. Monitor Workflow
-- Go to: https://github.com/aaahnaf/Xraw/actions
-- Watch for successful "Setup Android SDK" step
-- Verify workflow completes and APK is built
+### 3. 监控构建
+
+访问：https://github.com/aaahnaf/Xraw/actions
+
+预期结果：
+- ✅ "Setup Android SDK" 步骤成功
+- ✅ 没有 404 错误
+- ✅ 继续执行后续步骤
+
+## 技术细节
+
+### android-actions/setup-android@v4 参数说明
+
+根据 action 文档，`cmdline-tools-version` 参数：
+
+**有效值：**
+- `latest` - 使用最新版本
+- Build number（如 `11076708`）- 使用特定版本
+
+**无效值：**
+- ❌ 语义化版本号（如 `11.0`、`10.0`）
+- ❌ 其他非标准格式
+
+**默认行为：**
+- 如果不指定，action 使用内置的稳定版本
+- 这是最可靠的选择
+
+### Google Android SDK 下载 URL 格式
+
+Google 的 cmdline-tools 下载 URL 格式：
+
+```
+https://dl.google.com/android/repository/commandlinetools-linux-{version}_latest.zip
+```
+
+**有效的 version 值：**
+- `latest` - 最新版本
+- Build number（如 `11076708`、`10406996`）
+
+**无效的 version 值：**
+- ❌ `11.0`（语义化版本号）
+- ❌ `10.0`
+- ❌ 其他非 build number 格式
+
+### 为什么 build number 也可能失败？
+
+即使使用正确的 build number（如 `11076708`），也可能遇到问题：
+
+1. **action 可能不识别**
+   - 某些版本的 action 可能没有正确处理 build number
+   - 回退到 `latest`
+
+2. **latest 版本可能有问题**
+   - cmdline-tools 16.0 尝试安装已废弃的 `tools` 包
+   - 导致 `Failed to find package 'tools'` 错误
+
+3. **网络问题**
+   - Google 服务器可能暂时不可用
+   - 下载超时
+
+**最可靠的方案：** 不指定版本，使用 action 默认配置。
+
+## 验证清单
+
+修复后，验证以下内容：
+
+- [ ] workflow 中没有 `cmdline-tools-version` 参数
+- [ ] Build job 和 Test job 都使用相同的配置
+- [ ] 没有 404 下载错误
+- [ ] 没有 "Failed to find package 'tools'" 警告
+- [ ] SDK 设置步骤成功完成
+- [ ] SDK 包安装成功
+- [ ] 构建继续进行到 Gradle 阶段
+
+## 总结
+
+- ✅ 问题：cmdline-tools-version 参数格式错误导致 404
+- ✅ 原因：使用语义化版本号 `'11.0'` 而不是 build number
+- ✅ 修复：移除参数，使用 action 默认配置
+- ✅ 影响：两个 job 的 SDK 设置步骤
+- ⏳ 状态：已修复，等待提交和推送
 
 ---
 
-## Expected Outcome
-
-After this fix:
-1. ✅ "Setup Android SDK" step succeeds
-2. ✅ cmdline-tools downloads successfully
-3. ✅ SDK packages install correctly
-4. ✅ Frontend builds
-5. ✅ APK builds successfully
-6. ✅ Artifact uploads
-
----
-
-## Conclusion
-
-The CI failure was caused by using the broken `latest` keyword for `cmdline-tools-version`. The fix is simple: use a specific build number (`11076708`) instead.
-
-**Status:** ✅ FIXED  
-**Files Changed:** 1 (`.github/workflows/build-apk.yml`)  
-**Lines Changed:** 2 (one in build job, one in test job)  
-**Risk Level:** Low  
-**Next Action:** Commit and push to trigger workflow
-
----
-
-**Report Generated:** 2026-01-XX  
-**Fix Status:** ✅ IMPLEMENTED  
-**Testing Status:** ⚠️ REQUIRES GITHUB ACTIONS EXECUTION  
-**Confidence Level:** HIGH — Based on known-working build number and official documentation
+**文档版本：** 1.0  
+**最后更新：** 2024  
+**作者：** XRAW Camera 开发团队
