@@ -120,17 +120,9 @@ class XRawCameraPlugin : Plugin() {
 
     @PluginMethod
     override fun requestPermissions(call: PluginCall) {
-        val perms = mutableListOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
-        )
-        if (Build.VERSION.SDK_INT < 33) {
-            perms.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        } else {
-            perms.add(Manifest.permission.READ_MEDIA_IMAGES)
-            perms.add(Manifest.permission.READ_MEDIA_VIDEO)
-        }
-        requestPermissionForPlugin(perms.toTypedArray(), call, 1001)
+        // In Capacitor 5, use requestAllPermissions to request all permissions
+        // defined in the @CapacitorPlugin annotation
+        requestAllPermissions(call, 1001)
     }
 
     // ==================== CAMERA ENUMERATION ====================
