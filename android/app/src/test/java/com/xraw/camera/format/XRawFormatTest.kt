@@ -46,7 +46,7 @@ class XRawFormatTest {
             
             // Verify version
             val version = buffer.getShort(4)
-            assertEquals("Version should be 1", 1, version.toShort())
+            assertEquals("Version should be 1", 1.toShort(), version)
             
             // Verify dimensions
             val width = buffer.getInt(8)

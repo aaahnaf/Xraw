@@ -510,7 +510,11 @@ class XRawReader(private val file: File) {
         try {
             // Read header
             val headerBytes = ByteArray(XRawWriter.HEADER_SIZE)
-            raf.readFully(headerBytes)
+            try {
+                raf.readFully(headerBytes)
+            } catch (e: java.io.EOFException) {
+                return ValidationResult(false, false, 0, 0, 0, 0, 0, 0, 0, listOf("File truncated during header read"))
+            }
 
             val buffer = ByteBuffer.wrap(headerBytes)
             buffer.order(ByteOrder.BIG_ENDIAN)
@@ -560,7 +564,12 @@ class XRawReader(private val file: File) {
                     // Skip index block
                     raf.seek(offset + 4)
                     val entryCountBytes = ByteArray(4)
-                    raf.readFully(entryCountBytes)
+                    try {
+                        raf.readFully(entryCountBytes)
+                    } catch (e: java.io.EOFException) {
+                        errors.add("File truncated during index read")
+                        break
+                    }
                     val entryCount = ByteBuffer.wrap(entryCountBytes).order(ByteOrder.BIG_ENDIAN).int
                     offset += 8 + entryCount.toLong() * 12
                     continue
@@ -574,7 +583,12 @@ class XRawReader(private val file: File) {
                 // Read frame header
                 raf.seek(offset)
                 val frameHeaderBytes = ByteArray(XRawWriter.FRAME_HEADER_SIZE)
-                raf.readFully(frameHeaderBytes)
+                try {
+                    raf.readFully(frameHeaderBytes)
+                } catch (e: java.io.EOFException) {
+                    errors.add("File truncated during frame header read at offset $offset")
+                    break
+                }
 
                 val fhBuffer = ByteBuffer.wrap(frameHeaderBytes)
                 fhBuffer.order(ByteOrder.BIG_ENDIAN)
@@ -591,7 +605,12 @@ class XRawReader(private val file: File) {
 
                 // Read frame data and verify CRC
                 val frameData = ByteArray(dataSize)
-                raf.readFully(frameData)
+                try {
+                    raf.readFully(frameData)
+                } catch (e: java.io.EOFException) {
+                    errors.add("File truncated during frame data read at index $frameIndex")
+                    break
+                }
 
                 val frameCrc = CRC32()
                 frameCrc.update(frameData)
