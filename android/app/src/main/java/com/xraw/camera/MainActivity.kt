@@ -26,12 +26,6 @@ class MainActivity : BridgeActivity() {
         setupCameraPreview()
     }
     
-    override fun registerPlugins() {
-        // Explicitly register the XRawCamera plugin
-        // This ensures the plugin is available to the web frontend
-        bridge?.addPlugin(XRawCameraPlugin::class.java)
-    }
-    
     private fun setupCameraPreview() {
         // Get the root view (BridgeActivity uses a FrameLayout as root)
         val rootView = findViewById<ViewGroup>(android.R.id.content)
