@@ -120,9 +120,9 @@ class XRawCameraPlugin : Plugin() {
 
     @PluginMethod
     override fun requestPermissions(call: PluginCall) {
-        // In Capacitor 5, use requestAllPermissions to request all permissions
-        // defined in the @CapacitorPlugin annotation
-        requestAllPermissions(call, 1001)
+        // In Capacitor 5, use requestPermissionForAliases to request multiple permissions
+        // by their aliases defined in the @CapacitorPlugin annotation
+        requestPermissionForAliases(arrayOf("camera", "microphone"), call, 1001)
     }
 
     // ==================== CAMERA ENUMERATION ====================
