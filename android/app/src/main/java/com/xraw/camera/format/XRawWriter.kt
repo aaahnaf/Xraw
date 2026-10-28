@@ -138,8 +138,8 @@ class XRawWriter(private val file: File) {
         buffer.put(0)
         // Recovery interval (1 byte)
         buffer.put(48)
-        // Reserved (2 bytes)
-        buffer.putShort(0)
+        // Reserved (4 bytes)
+        buffer.putInt(0)
 
         // Calculate header CRC32 (bytes 0-59)
         val headerBytes = ByteArray(60)

@@ -228,7 +228,7 @@ class XRawFormatTest {
             val width = 4
             val height = 4
             val codec = XRawLCCodec(width, height, bitDepth)
-            val maxVal = ((1 shl bitDepth) - 1).toShort()
+            val maxVal = (1 shl bitDepth) - 1
             
             val original = ShortArray(width * height) { i ->
                 ((i * 137 + 42) % (maxVal + 1)).toShort()
