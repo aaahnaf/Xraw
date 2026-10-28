@@ -87,6 +87,20 @@ jobs:
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
+      - name: Download Gradle Wrapper JAR
+        working-directory: android
+        run: |
+          mkdir -p gradle/wrapper
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "Downloading gradle-wrapper.jar..."
+            curl -L -o gradle/wrapper/gradle-wrapper.jar \
+              "https://raw.githubusercontent.com/gradle/gradle/v${{ env.GRADLE_VERSION }}/gradle/wrapper/gradle-wrapper.jar"
+            echo "✓ gradle-wrapper.jar downloaded"
+          else
+            echo "✓ gradle-wrapper.jar already exists"
+          fi
+          ls -lh gradle/wrapper/
+
       - name: Build debug APK
         if: github.event.inputs.build_type != 'release'
         working-directory: android
@@ -225,6 +239,20 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Download Gradle Wrapper JAR
+        working-directory: android
+        run: |
+          mkdir -p gradle/wrapper
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "Downloading gradle-wrapper.jar..."
+            curl -L -o gradle/wrapper/gradle-wrapper.jar \
+              "https://raw.githubusercontent.com/gradle/gradle/v${{ env.GRADLE_VERSION }}/gradle/wrapper/gradle-wrapper.jar"
+            echo "✓ gradle-wrapper.jar downloaded"
+          else
+            echo "✓ gradle-wrapper.jar already exists"
+          fi
+          ls -lh gradle/wrapper/
 
       - name: Run unit tests
         working-directory: android
