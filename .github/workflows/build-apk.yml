@@ -87,27 +87,12 @@ jobs:
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
-      - name: Download Gradle Wrapper JAR
-        working-directory: android
-        run: |
-          mkdir -p gradle/wrapper
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Downloading gradle-wrapper.jar..."
-            curl -L -o gradle/wrapper/gradle-wrapper.jar \
-              "https://raw.githubusercontent.com/gradle/gradle/v${{ env.GRADLE_VERSION }}/gradle/wrapper/gradle-wrapper.jar"
-            echo "✓ gradle-wrapper.jar downloaded"
-          else
-            echo "✓ gradle-wrapper.jar already exists"
-          fi
-          ls -lh gradle/wrapper/
-
       - name: Build debug APK
         if: github.event.inputs.build_type != 'release'
         working-directory: android
         run: |
           echo "Building debug APK..."
-          chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          gradle assembleDebug --stacktrace --no-daemon
 
           if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
             echo "ERROR: Debug APK not found"
@@ -123,8 +108,7 @@ jobs:
         working-directory: android
         run: |
           echo "Building release APK..."
-          chmod +x ./gradlew
-          ./gradlew assembleRelease --stacktrace --no-daemon
+          gradle assembleRelease --stacktrace --no-daemon
 
           if [ ! -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
             echo "ERROR: Release APK not found"
@@ -240,24 +224,9 @@ jobs:
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
-      - name: Download Gradle Wrapper JAR
-        working-directory: android
-        run: |
-          mkdir -p gradle/wrapper
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "Downloading gradle-wrapper.jar..."
-            curl -L -o gradle/wrapper/gradle-wrapper.jar \
-              "https://raw.githubusercontent.com/gradle/gradle/v${{ env.GRADLE_VERSION }}/gradle/wrapper/gradle-wrapper.jar"
-            echo "✓ gradle-wrapper.jar downloaded"
-          else
-            echo "✓ gradle-wrapper.jar already exists"
-          fi
-          ls -lh gradle/wrapper/
-
       - name: Run unit tests
         working-directory: android
         run: |
           echo "Running unit tests..."
-          chmod +x ./gradlew
-          ./gradlew test --stacktrace --no-daemon
+          gradle test --stacktrace --no-daemon
           echo "✓ Unit tests completed"
