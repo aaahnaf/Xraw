@@ -92,6 +92,7 @@ jobs:
         working-directory: android
         run: |
           echo "Building debug APK..."
+          chmod +x ./gradlew
           ./gradlew assembleDebug --stacktrace --no-daemon
 
           if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
@@ -108,6 +109,7 @@ jobs:
         working-directory: android
         run: |
           echo "Building release APK..."
+          chmod +x ./gradlew
           ./gradlew assembleRelease --stacktrace --no-daemon
 
           if [ ! -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
@@ -228,5 +230,6 @@ jobs:
         working-directory: android
         run: |
           echo "Running unit tests..."
+          chmod +x ./gradlew
           ./gradlew test --stacktrace --no-daemon
           echo "✓ Unit tests completed"
