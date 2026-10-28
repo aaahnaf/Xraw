@@ -2,9 +2,9 @@ name: Build XRAW Camera APK
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ xraw-camera-android-app-d374a, main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ xraw-camera-android-app-d374a, main ]
   workflow_dispatch:
     inputs:
       build_type:
@@ -18,6 +18,8 @@ on:
 
 env:
   JAVA_VERSION: '17'
+  ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+  ANDROID_HOME: ${{ github.workspace }}/android-sdk
   ANDROID_COMPILE_SDK: '34'
   ANDROID_BUILD_TOOLS: '34.0.0'
   GRADLE_VERSION: '8.5'
@@ -36,68 +38,25 @@ jobs:
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-          cache: 'gradle'
 
-      - name: Diagnose Android SDK environment
-        run: |
-          echo "=== Android SDK Environment Diagnostics ==="
-          echo "ANDROID_HOME: ${ANDROID_HOME:-not set}"
-          echo "ANDROID_SDK_ROOT: ${ANDROID_SDK_ROOT:-not set}"
-          if [ -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}" ]; then
-            echo "SDK directory contents:"
-            ls -la "${ANDROID_HOME:-/usr/local/lib/android/sdk}" || true
-          fi
-          echo "==========================================="
-
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: |
-            platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+          cmdline-tools-version: latest
 
-      - name: Verify SDK installation
+      - name: Install required SDK packages
         run: |
-          echo "=== Verifying Android SDK Installation ==="
-          echo "Installed packages:"
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Verify SDK
+        run: |
+          echo "=== Android SDK Verification ==="
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
           sdkmanager --list_installed
-          
-          echo ""
-          echo "Checking required packages..."
-          
-          # Check each required package and fail if missing
-          MISSING=0
-          
-          if ! sdkmanager --list_installed | grep -q "platform-tools"; then
-            echo "✗ ERROR: platform-tools not installed"
-            MISSING=1
-          else
-            echo "✓ platform-tools installed"
-          fi
-          
-          if ! sdkmanager --list_installed | grep -q "platforms;android-34"; then
-            echo "✗ ERROR: platforms;android-34 not installed"
-            MISSING=1
-          else
-            echo "✓ platforms;android-34 installed"
-          fi
-          
-          if ! sdkmanager --list_installed | grep -q "build-tools;34.0.0"; then
-            echo "✗ ERROR: build-tools;34.0.0 not installed"
-            MISSING=1
-          else
-            echo "✓ build-tools;34.0.0 installed"
-          fi
-          
-          if [ $MISSING -eq 1 ]; then
-            echo ""
-            echo "✗ SDK verification FAILED: Required packages are missing"
-            exit 1
-          fi
-          
-          echo ""
-          echo "✓ All required SDK packages verified successfully"
+          test -d "$ANDROID_HOME" || exit 1
+          echo "✓ SDK verification passed"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -123,14 +82,13 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
-          build-root-directory: android
 
       - name: Build debug APK
         if: github.event.inputs.build_type != 'release'
         working-directory: android
         run: |
           echo "Building debug APK..."
-          ./gradlew assembleDebug --stacktrace --no-daemon --info
+          ./gradlew assembleDebug --stacktrace --no-daemon
           
           # Verify APK was created
           if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
@@ -147,7 +105,7 @@ jobs:
         working-directory: android
         run: |
           echo "Building release APK..."
-          ./gradlew assembleRelease --stacktrace --no-daemon --info
+          ./gradlew assembleRelease --stacktrace --no-daemon
           
           # Verify APK was created
           if [ ! -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
@@ -227,68 +185,25 @@ jobs:
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
-          cache: 'gradle'
 
-      - name: Diagnose Android SDK environment
-        run: |
-          echo "=== Android SDK Environment Diagnostics ==="
-          echo "ANDROID_HOME: ${ANDROID_HOME:-not set}"
-          echo "ANDROID_SDK_ROOT: ${ANDROID_SDK_ROOT:-not set}"
-          if [ -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}" ]; then
-            echo "SDK directory contents:"
-            ls -la "${ANDROID_HOME:-/usr/local/lib/android/sdk}" || true
-          fi
-          echo "==========================================="
-
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: |
-            platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+          cmdline-tools-version: latest
 
-      - name: Verify SDK installation
+      - name: Install required SDK packages
         run: |
-          echo "=== Verifying Android SDK Installation ==="
-          echo "Installed packages:"
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Verify SDK
+        run: |
+          echo "=== Android SDK Verification ==="
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
           sdkmanager --list_installed
-          
-          echo ""
-          echo "Checking required packages..."
-          
-          # Check each required package and fail if missing
-          MISSING=0
-          
-          if ! sdkmanager --list_installed | grep -q "platform-tools"; then
-            echo "✗ ERROR: platform-tools not installed"
-            MISSING=1
-          else
-            echo "✓ platform-tools installed"
-          fi
-          
-          if ! sdkmanager --list_installed | grep -q "platforms;android-34"; then
-            echo "✗ ERROR: platforms;android-34 not installed"
-            MISSING=1
-          else
-            echo "✓ platforms;android-34 installed"
-          fi
-          
-          if ! sdkmanager --list_installed | grep -q "build-tools;34.0.0"; then
-            echo "✗ ERROR: build-tools;34.0.0 not installed"
-            MISSING=1
-          else
-            echo "✓ build-tools;34.0.0 installed"
-          fi
-          
-          if [ $MISSING -eq 1 ]; then
-            echo ""
-            echo "✗ SDK verification FAILED: Required packages are missing"
-            exit 1
-          fi
-          
-          echo ""
-          echo "✓ All required SDK packages verified successfully"
+          test -d "$ANDROID_HOME" || exit 1
+          echo "✓ SDK verification passed"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -306,7 +221,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
-          build-root-directory: android
 
       - name: Run unit tests
         working-directory: android
