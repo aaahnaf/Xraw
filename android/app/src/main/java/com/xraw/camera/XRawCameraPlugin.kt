@@ -946,7 +946,7 @@ class XRawCameraPlugin : Plugin() {
                         val data = ByteArray(buffer.remaining())
                         buffer.get(data)
                         
-                        val frameIdx = frameCounter.get()
+                        val frameIdx = frameCounter.getAndIncrement()
                         
                         // Offer byte array to queue
                         val frameData = FrameData(data, frameIdx)
@@ -1046,16 +1046,27 @@ class XRawCameraPlugin : Plugin() {
             // Drain remaining frames
             drainFrameQueue()
             
-            // Finalize file
-            val writer = xrawWriter
-            if (writer != null) {
+            // Finalize XRAW file if recording XRAW
+            val xraw = xrawWriter
+            if (xraw != null) {
                 try {
-                    writer.finalizeFile()
+                    xraw.finalizeFile()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error finalizing file", e)
+                    Log.e(TAG, "Error finalizing XRAW file", e)
                 }
             }
             xrawWriter = null
+            
+            // Finalize MLV file if recording MLV
+            val mlv = mlvWriter
+            if (mlv != null) {
+                try {
+                    mlv.finalizeFile()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error finalizing MLV file", e)
+                }
+            }
+            mlvWriter = null
             
             // Close raw reader
             rawImageReader?.close()
@@ -1087,7 +1098,24 @@ class XRawCameraPlugin : Plugin() {
                 if (frameData != null) {
                     try {
                         val writer = xrawWriter ?: return
-                        writer.writeFrame(frameData.bytes, frameData.frameIndex)
+                        
+                        // Apply compression if enabled
+                        val dataToWrite = if (writer.compressionId == XRawWriter.COMPRESSION_XRAWLC) {
+                            // Convert byte array to short array for compression
+                            val shortData = ShortArray(frameData.bytes.size / 2)
+                            for (i in shortData.indices) {
+                                shortData[i] = ((frameData.bytes[i * 2].toInt() and 0xFF) or 
+                                               ((frameData.bytes[i * 2 + 1].toInt() and 0xFF) shl 8)).toShort()
+                            }
+                            
+                            // Compress using XRawLCCodec
+                            val codec = XRawLCCodec(writer.imageWidth, writer.imageHeight, writer.bitDepth)
+                            codec.compress(shortData)
+                        } else {
+                            frameData.bytes
+                        }
+                        
+                        writer.writeFrame(dataToWrite, frameData.frameIndex)
                         
                         // Write index at recovery intervals
                         if (frameData.frameIndex > 0 && frameData.frameIndex % RECOVERY_INTERVAL == 0) {
@@ -1115,54 +1143,7 @@ class XRawCameraPlugin : Plugin() {
         })
     }
 
-    private fun drainFrameQueue() {
-        while (true) {
-            val frameData = frameQueue.poll(10, TimeUnit.MILLISECONDS) ?: break
-            try {
-                val writer = xrawWriter ?: break
-                writer.writeFrame(frameData.bytes, frameData.frameIndex)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error draining frame", e)
-            }
-        }
-    }
-
-    private fun restorePreviewAfterRecording() {
-        val device = cameraDevice ?: return
-        val surface = previewSurface ?: return
-        
-        try {
-            val surfaces = listOf(surface)
-            
-            device.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
-                override fun onConfigured(session: CameraCaptureSession) {
-                    captureSession = session
-                    
-                    val requestBuilder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                    requestBuilder.addTarget(surface)
-                    applySettingsToRequest(requestBuilder)
-                    
-                    val fpsRange = when (settings?.frameRate) {
-                        24 -> android.util.Range(24, 24)
-                        25 -> android.util.Range(25, 25)
-                        30 -> android.util.Range(30, 30)
-                        else -> android.util.Range(15, 30)
-                    }
-                    requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange)
-                    
-                    session.setRepeatingRequest(requestBuilder.build(), null, cameraHandler)
-                    
-                    notifyListeners("previewRestored", JSObject())
-                }
-                
-                override fun onConfigureFailed(session: CameraCaptureSession) {
-                    Log.e(TAG, "Failed to restore preview after recording")
-                }
-            }, cameraHandler)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error restoring preview after recording", e)
-        }
-    }
+    // drainFrameQueue and restorePreviewAfterRecording are defined above
 
     @PluginMethod
     fun startLogVideoRecording(call: PluginCall) {
@@ -1255,7 +1236,7 @@ class XRawCameraPlugin : Plugin() {
                         val data = ByteArray(buffer.remaining())
                         buffer.get(data)
                         
-                        val frameIdx = frameCounter.get()
+                        val frameIdx = frameCounter.getAndIncrement()
                         
                         // Offer byte array to queue
                         val frameData = FrameData(data, frameIdx)

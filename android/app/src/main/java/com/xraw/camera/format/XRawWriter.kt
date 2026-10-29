@@ -401,16 +401,16 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
             "Compressed bit depth $bd doesn't match codec $bitDepth"
         }
 
-        // Validate we have enough data for all residuals (now 2 bytes each)
-        val expectedSize = 5 + (w * h * 2)
+        // Validate we have enough data for all residuals (4 bytes each)
+        val expectedSize = 5 + (w * h * 4)
         require(compressed.size >= expectedSize) {
             "Compressed data truncated: expected $expectedSize bytes, got ${compressed.size}"
         }
 
-        // Unpack residuals (16-bit signed integers)
+        // Unpack residuals (32-bit signed integers)
         val residuals = IntArray(w * h)
         for (i in residuals.indices) {
-            residuals[i] = buffer.short.toInt()
+            residuals[i] = buffer.int
         }
 
         // Reconstruct from residuals
@@ -443,19 +443,21 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
     }
 
     private fun medianPredict(a: Int, b: Int, c: Int): Int {
-        // JPEG-LOCO median edge prediction
-        // Returns the median of (a, b, a+b-c)
-        return if (a > b) {
-            if (c > a) a else if (c < b) b else c
-        } else {
-            if (c > b) a else if (c < a) b else c
+        // Standard JPEG-LOCO median edge prediction: median(a, b, a+b-c)
+        val max = maxOf(a, b)
+        val min = minOf(a, b)
+        return when {
+            c >= max -> min
+            c <= min -> max
+            else -> a + b - c
         }
     }
 
     private fun packResiduals(residuals: IntArray): ByteArray {
         // Header: width(2) + height(2) + bitDepth(1) = 5 bytes
-        // Each residual: 2 bytes (Int16) - actual compression
-        val output = ByteBuffer.allocate(5 + residuals.size * 2)
+        // Each residual: 4 bytes (Int32) to handle full range -65535 to +65535
+        // Note: This is not compressed yet - entropy coding will be added later
+        val output = ByteBuffer.allocate(5 + residuals.size * 4)
         output.order(ByteOrder.BIG_ENDIAN)
 
         // Header
@@ -463,11 +465,9 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
         output.putShort(height.toShort())
         output.put(bitDepth.toByte())
 
-        // Residuals as 16-bit signed integers
+        // Residuals as 32-bit signed integers (no clamping)
         for (r in residuals) {
-            // Clamp to 16-bit range
-            val clamped = r.coerceIn(-32768, 32767)
-            output.putShort(clamped.toShort())
+            output.putInt(r)
         }
 
         return output.array()

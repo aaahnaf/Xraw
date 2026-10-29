@@ -275,20 +275,20 @@ export class XRAWLCEncoder {
     
     const output = new Uint16Array(w * h);
     
-    // Validate we have enough data for all residuals (now 2 bytes each)
-    const expectedSize = 5 + (w * h * 2);
+    // Validate we have enough data for all residuals (4 bytes each)
+    const expectedSize = 5 + (w * h * 4);
     if (compressed.length < expectedSize) {
       throw new Error(`Compressed data truncated: expected ${expectedSize} bytes, got ${compressed.length}`);
     }
 
-    // Unpack residuals as Int16
+    // Unpack residuals as Int32
     let offset = 5;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = y * w + x;
         
-        const residual = view.getInt16(offset, false);
-        offset += 2;
+        const residual = view.getInt32(offset, false);
+        offset += 4;
         
         const hPred = x > 0 ? output[idx - 1] : 0;
         const vPred = y > 0 ? output[(y - 1) * w + x] : 0;
@@ -314,23 +314,19 @@ export class XRAWLCEncoder {
   }
   
   private medianPredict(a: number, b: number, c: number): number {
-    // JPEG-LOCO median edge prediction
-    // Returns the median of (a, b, a+b-c)
-    if (a > b) {
-      if (c > a) return a;
-      if (c < b) return b;
-      return c;
-    } else {
-      if (c > b) return a;
-      if (c < a) return b;
-      return c;
-    }
+    // Standard JPEG-LOCO median edge prediction: median(a, b, a+b-c)
+    const max = Math.max(a, b);
+    const min = Math.min(a, b);
+    if (c >= max) return min;
+    if (c <= min) return max;
+    return a + b - c;
   }
   
   private packResiduals(residuals: Int32Array): Uint8Array {
     // Header: width(2) + height(2) + bitDepth(1) = 5 bytes
-    // Each residual: 2 bytes (Int16) - actual compression
-    const output = new Uint8Array(5 + residuals.length * 2);
+    // Each residual: 4 bytes (Int32) to handle full range -65535 to +65535
+    // Note: This is not compressed yet - entropy coding will be added later
+    const output = new Uint8Array(5 + residuals.length * 4);
     const view = new DataView(output.buffer);
     
     view.setUint16(0, this.width, false);
@@ -339,10 +335,8 @@ export class XRAWLCEncoder {
     
     let offset = 5;
     for (let i = 0; i < residuals.length; i++) {
-      // Clamp to 16-bit range
-      const clamped = Math.max(-32768, Math.min(32767, residuals[i]));
-      view.setInt16(offset, clamped, false);
-      offset += 2;
+      view.setInt32(offset, residuals[i], false);
+      offset += 4;
     }
     
     return output;
