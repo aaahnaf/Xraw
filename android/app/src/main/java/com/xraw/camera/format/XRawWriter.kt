@@ -384,7 +384,7 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
      * Returns ShortArray with unsigned values in lower bits.
      */
     fun decompress(compressed: ByteArray): ShortArray {
-        require(compressed.size >= 5) { "Compressed data too short" }
+        require(compressed.size >= 6) { "Compressed data too short" }
 
         val buffer = ByteBuffer.wrap(compressed)
         buffer.order(ByteOrder.BIG_ENDIAN)
@@ -392,6 +392,7 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
         val w = buffer.short.toInt() and 0xFFFF
         val h = buffer.short.toInt() and 0xFFFF
         val bd = buffer.get().toInt() and 0xFF
+        val k = buffer.get().toInt() and 0xFF
 
         // Validate dimensions match
         require(w == width && h == height) {
@@ -401,17 +402,11 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
             "Compressed bit depth $bd doesn't match codec $bitDepth"
         }
 
-        // Validate we have enough data for all residuals (4 bytes each)
-        val expectedSize = 5 + (w * h * 4)
-        require(compressed.size >= expectedSize) {
-            "Compressed data truncated: expected $expectedSize bytes, got ${compressed.size}"
-        }
-
-        // Unpack residuals (32-bit signed integers)
-        val residuals = IntArray(w * h)
-        for (i in residuals.indices) {
-            residuals[i] = buffer.int
-        }
+        // Decode Golomb-Rice residuals
+        val coder = GolombRiceCoder()
+        val encodedData = ByteArray(compressed.size - 6)
+        buffer.get(encodedData)
+        val residuals = coder.decode(encodedData, k, w * h)
 
         // Reconstruct from residuals
         val output = ShortArray(w * h)
@@ -433,7 +428,6 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
                 }
 
                 // Exact reconstruction - no masking, no clamping
-                // pred + residual must equal original value exactly
                 val value = pred + residual
                 output[idx] = value.toShort()
             }
@@ -455,9 +449,11 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
 
     private fun packResiduals(residuals: IntArray): ByteArray {
         // Header: width(2) + height(2) + bitDepth(1) = 5 bytes
-        // Each residual: 4 bytes (Int32) to handle full range -65535 to +65535
-        // Note: This is not compressed yet - entropy coding will be added later
-        val output = ByteBuffer.allocate(5 + residuals.size * 4)
+        // Compressed data: k(1) + Golomb-Rice encoded residuals
+        val coder = GolombRiceCoder()
+        val compressed = coder.encode(residuals, bitDepth)
+        
+        val output = ByteBuffer.allocate(5 + compressed.size)
         output.order(ByteOrder.BIG_ENDIAN)
 
         // Header
@@ -465,10 +461,8 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
         output.putShort(height.toShort())
         output.put(bitDepth.toByte())
 
-        // Residuals as 32-bit signed integers (no clamping)
-        for (r in residuals) {
-            output.putInt(r)
-        }
+        // Compressed residuals (includes k parameter)
+        output.put(compressed)
 
         return output.array()
     }

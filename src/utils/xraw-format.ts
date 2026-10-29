@@ -2,6 +2,8 @@
 // Binary format specification for .xraw and .xrawlc files
 // Must match the Kotlin implementation in XRawWriter.kt
 
+import * as golomb from './golomb-rice';
+
 export const XRAW_MAGIC = 0x58524157; // "XRAW" in ASCII
 export const XRAW_VERSION = 1;
 
@@ -258,13 +260,14 @@ export class XRAWLCEncoder {
    * Decompress XRAWLC data back to original samples
    */
   decompress(compressed: Uint8Array): Uint16Array {
-    if (compressed.length < 5) throw new Error('Compressed data too short');
+    if (compressed.length < 6) throw new Error('Compressed data too short');
     
     const view = new DataView(compressed.buffer, compressed.byteOffset, compressed.byteLength);
     
     const w = view.getUint16(0, false);
     const h = view.getUint16(2, false);
     const bd = compressed[4];
+    const k = compressed[5];
     
     if (w !== this.width || h !== this.height) {
       throw new Error(`Compressed dimensions ${w}x${h} don't match codec ${this.width}x${this.height}`);
@@ -275,20 +278,15 @@ export class XRAWLCEncoder {
     
     const output = new Uint16Array(w * h);
     
-    // Validate we have enough data for all residuals (4 bytes each)
-    const expectedSize = 5 + (w * h * 4);
-    if (compressed.length < expectedSize) {
-      throw new Error(`Compressed data truncated: expected ${expectedSize} bytes, got ${compressed.length}`);
-    }
+    // Decode Golomb-Rice residuals
+    const encodedData = compressed.slice(6);
+    const residuals = golomb.decode(encodedData, k, w * h);
 
-    // Unpack residuals as Int32
-    let offset = 5;
+    // Reconstruct from residuals
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = y * w + x;
-        
-        const residual = view.getInt32(offset, false);
-        offset += 4;
+        const residual = residuals[idx];
         
         const hPred = x > 0 ? output[idx - 1] : 0;
         const vPred = y > 0 ? output[(y - 1) * w + x] : 0;
@@ -324,20 +322,18 @@ export class XRAWLCEncoder {
   
   private packResiduals(residuals: Int32Array): Uint8Array {
     // Header: width(2) + height(2) + bitDepth(1) = 5 bytes
-    // Each residual: 4 bytes (Int32) to handle full range -65535 to +65535
-    // Note: This is not compressed yet - entropy coding will be added later
-    const output = new Uint8Array(5 + residuals.length * 4);
+    // Compressed data: k(1) + Golomb-Rice encoded residuals
+    const compressed = golomb.encode(residuals, this.bitDepth);
+    
+    const output = new Uint8Array(5 + compressed.length);
     const view = new DataView(output.buffer);
     
     view.setUint16(0, this.width, false);
     view.setUint16(2, this.height, false);
     output[4] = this.bitDepth;
     
-    let offset = 5;
-    for (let i = 0; i < residuals.length; i++) {
-      view.setInt32(offset, residuals[i], false);
-      offset += 4;
-    }
+    // Copy compressed data (includes k parameter as first byte)
+    output.set(compressed, 5);
     
     return output;
   }

@@ -932,7 +932,8 @@ class XRawCameraPlugin : Plugin() {
             
             // Set up image listener
             rawImageReader!!.setOnImageAvailableListener({ reader ->
-                val image = reader.acquireLatestImage()
+                // Bug C fix: Use acquireNextImage() to avoid silent frame drops
+                val image = reader.acquireNextImage()
                 if (image != null) {
                     try {
                         if (!isRecording.get()) {
@@ -940,11 +941,42 @@ class XRawCameraPlugin : Plugin() {
                             return@setOnImageAvailableListener
                         }
                         
-                        // Copy buffer data immediately
+                        // Bug B fix: Copy buffer data honoring rowStride and pixelStride
                         val plane = image.planes[0]
                         val buffer = plane.buffer
-                        val data = ByteArray(buffer.remaining())
-                        buffer.get(data)
+                        val rowStride = plane.rowStride
+                        val pixelStride = plane.pixelStride
+                        
+                        // Calculate tightly packed output size
+                        val outputSize = image.width * image.height * 2  // 16-bit = 2 bytes per pixel
+                        val data = ByteArray(outputSize)
+                        
+                        // Copy row by row, handling stride
+                        var outputOffset = 0
+                        for (row in 0 until image.height) {
+                            // Calculate source position for this row
+                            val sourcePos = row * rowStride
+                            buffer.position(sourcePos)
+                            
+                            // Copy this row's pixels
+                            // For RAW_SENSOR, pixelStride is typically 2 (16-bit)
+                            // But we handle it generically
+                            val rowBytes = image.width * pixelStride
+                            val rowData = ByteArray(rowBytes)
+                            buffer.get(rowData)
+                            
+                            // If pixelStride == 2 (16-bit), copy directly
+                            // If pixelStride != 2, we'd need to convert, but RAW_SENSOR is always 16-bit
+                            if (pixelStride == 2) {
+                                System.arraycopy(rowData, 0, data, outputOffset, rowBytes)
+                                outputOffset += rowBytes
+                            } else {
+                                // Unexpected pixel stride for RAW_SENSOR - log error
+                                Log.e(TAG, "Unexpected pixelStride=$pixelStride for RAW_SENSOR")
+                                image.close()
+                                return@setOnImageAvailableListener
+                            }
+                        }
                         
                         val frameIdx = frameCounter.getAndIncrement()
                         
@@ -958,9 +990,19 @@ class XRawCameraPlugin : Plugin() {
                                 put("totalDropped", droppedFrameCount.get())
                             })
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing image", e)
+                        droppedFrameCount.incrementAndGet()
+                        notifyListeners("frameDropped", JSObject().apply {
+                            put("reason", "processing_error")
+                            put("totalDropped", droppedFrameCount.get())
+                        })
                     } finally {
                         image.close()
                     }
+                } else {
+                    // acquireNextImage() returned null - no frame available
+                    // This is normal when the queue is empty, not an error
                 }
             }, cameraHandler)
             
@@ -1222,7 +1264,8 @@ class XRawCameraPlugin : Plugin() {
             
             // Set up image listener
             rawImageReader!!.setOnImageAvailableListener({ reader ->
-                val image = reader.acquireLatestImage()
+                // Bug C fix: Use acquireNextImage() to avoid silent frame drops
+                val image = reader.acquireNextImage()
                 if (image != null) {
                     try {
                         if (!isRecording.get()) {
@@ -1230,11 +1273,39 @@ class XRawCameraPlugin : Plugin() {
                             return@setOnImageAvailableListener
                         }
                         
-                        // Copy buffer data immediately
+                        // Bug B fix: Copy buffer data honoring rowStride and pixelStride
                         val plane = image.planes[0]
                         val buffer = plane.buffer
-                        val data = ByteArray(buffer.remaining())
-                        buffer.get(data)
+                        val rowStride = plane.rowStride
+                        val pixelStride = plane.pixelStride
+                        
+                        // Calculate tightly packed output size
+                        val outputSize = image.width * image.height * 2  // 16-bit = 2 bytes per pixel
+                        val data = ByteArray(outputSize)
+                        
+                        // Copy row by row, handling stride
+                        var outputOffset = 0
+                        for (row in 0 until image.height) {
+                            // Calculate source position for this row
+                            val sourcePos = row * rowStride
+                            buffer.position(sourcePos)
+                            
+                            // Copy this row's pixels
+                            val rowBytes = image.width * pixelStride
+                            val rowData = ByteArray(rowBytes)
+                            buffer.get(rowData)
+                            
+                            // For RAW_SENSOR, pixelStride should be 2 (16-bit)
+                            if (pixelStride == 2) {
+                                System.arraycopy(rowData, 0, data, outputOffset, rowBytes)
+                                outputOffset += rowBytes
+                            } else {
+                                // Unexpected pixel stride for RAW_SENSOR - log error
+                                Log.e(TAG, "Unexpected pixelStride=$pixelStride for RAW_SENSOR in MLV recording")
+                                image.close()
+                                return@setOnImageAvailableListener
+                            }
+                        }
                         
                         val frameIdx = frameCounter.getAndIncrement()
                         
@@ -1247,6 +1318,13 @@ class XRawCameraPlugin : Plugin() {
                                 put("totalDropped", droppedFrameCount.get())
                             })
                         }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing MLV image", e)
+                        droppedFrameCount.incrementAndGet()
+                        notifyListeners("frameDropped", JSObject().apply {
+                            put("reason", "processing_error")
+                            put("totalDropped", droppedFrameCount.get())
+                        })
                     } finally {
                         image.close()
                     }
