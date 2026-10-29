@@ -36,6 +36,7 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
               }}
             >
               <div className="text-sm font-medium text-white">RAW</div>
+              <div className="text-xs mt-0.5 text-red-400">⚠ NOT IMPLEMENTED - Recording is a stub</div>
               <div className="text-xs mt-0.5 text-white/60">Sensor data preservation (.xraw/.xrawlc)</div>
             </button>
             
@@ -47,6 +48,7 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
               }}
             >
               <div className="text-sm font-medium text-white">MLV</div>
+              <div className="text-xs mt-0.5 text-red-400">⚠ NOT IMPLEMENTED - Recording is a stub</div>
               <div className="text-xs mt-0.5 text-white/60">Magic Lantern Video format (.mlv)</div>
             </button>
             
@@ -58,7 +60,8 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
               }}
             >
               <div className="text-sm font-medium text-white">LOG VIDEO</div>
-              <div className="text-xs mt-0.5 text-white/60">MP4 recording (log curves not yet implemented)</div>
+              <div className="text-xs mt-0.5 text-red-400">⚠ NOT IMPLEMENTED - Recording is a stub</div>
+              <div className="text-xs mt-0.5 text-white/60">Output would be Rec.709, not log</div>
             </button>
           </div>
         </section>

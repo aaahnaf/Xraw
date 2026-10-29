@@ -120,20 +120,46 @@ class XRawCameraPlugin : Plugin() {
 
     @PluginMethod
     override fun requestPermissions(call: PluginCall) {
+        // Store the call for later resolution
+        pendingPermissionCall = call
+        
         // Use Android's native permission request mechanism
         val perms = mutableListOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
+            Manifest.permission.CAMERA
         )
         if (Build.VERSION.SDK_INT < 33) {
             perms.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         } else {
             perms.add(Manifest.permission.READ_MEDIA_IMAGES)
             perms.add(Manifest.permission.READ_MEDIA_VIDEO)
+            perms.add(Manifest.permission.POST_NOTIFICATIONS)
         }
         
         activity.requestPermissions(perms.toTypedArray(), 1001)
-        call.resolve()
+        // Don't resolve yet - wait for onRequestPermissionsResult
+    }
+
+    private var pendingPermissionCall: PluginCall? = null
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        if (requestCode == 1001) {
+            val call = pendingPermissionCall ?: return
+            pendingPermissionCall = null
+            
+            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            
+            if (allGranted) {
+                call.resolve()
+            } else {
+                call.reject("Permission denied")
+            }
+        }
     }
 
     // ==================== CAMERA ENUMERATION ====================
@@ -407,32 +433,44 @@ class XRawCameraPlugin : Plugin() {
         }
 
         try {
-            val chars = cameraCharacteristics!!
-            val config = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-                ?: run {
-                    call.reject("No stream configuration available")
-                    return
+            // Get the CameraPreviewView from MainActivity
+            val activity = this.activity as? MainActivity
+            val previewView = activity?.getCameraPreviewView()
+            
+            if (previewView == null) {
+                call.reject("CameraPreviewView not found")
+                return
+            }
+
+            // Wait for the surface to be available
+            if (!previewView.isSurfaceReady()) {
+                previewView.setOnSurfaceReadyListener { surface ->
+                    startPreviewWithSurface(device, surface, call)
                 }
+            } else {
+                val surface = previewView.getPreviewSurface()
+                if (surface != null) {
+                    startPreviewWithSurface(device, surface, call)
+                } else {
+                    call.reject("Preview surface is null")
+                }
+            }
 
-            // Choose preview size
-            val previewSizes = config.getOutputSizes(android.graphics.ImageFormat.YUV_420_888)
-            val previewSize = chooseOptimalPreviewSize(previewSizes, 1280, 720)
+        } catch (e: Exception) {
+            call.reject("Failed to start preview: ${e.message}", e)
+        }
+    }
 
-            previewImageReader = ImageReader.newInstance(
-                previewSize.width,
-                previewSize.height,
-                android.graphics.ImageFormat.YUV_420_888,
-                3
-            )
-
-            val surfaces = listOf<Surface>(previewImageReader!!.surface)
+    private fun startPreviewWithSurface(device: CameraDevice, surface: Surface, call: PluginCall) {
+        try {
+            val surfaces = listOf(surface)
 
             device.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
                 override fun onConfigured(session: CameraCaptureSession) {
                     captureSession = session
 
                     val requestBuilder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                    requestBuilder.addTarget(previewImageReader!!.surface)
+                    requestBuilder.addTarget(surface)
                     applySettingsToRequest(requestBuilder)
 
                     requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
@@ -620,11 +658,19 @@ class XRawCameraPlugin : Plugin() {
         val r = if (k <= 4000) 1.2f else if (k <= 5500) 1.0f else 0.9f
         val b = if (k <= 4000) 0.8f else if (k <= 5500) 1.0f else 1.3f
 
+        // ColorSpaceTransform expects 18 integers: 9 rational pairs (numerator, denominator)
+        // Format: [r00_num, r00_den, r01_num, r01_den, ..., r22_num, r22_den]
         return android.hardware.camera2.params.ColorSpaceTransform(
             intArrayOf(
-                (r * 10000).toInt(), 0, 0,
-                0, 10000, 0,
-                0, 0, (b * 10000).toInt()
+                (r * 10000).toInt(), 10000,  // r00
+                0, 10000,                      // r01
+                0, 10000,                      // r02
+                0, 10000,                      // r10
+                10000, 10000,                  // r11 (green channel, no change)
+                0, 10000,                      // r12
+                0, 10000,                      // r20
+                0, 10000,                      // r21
+                (b * 10000).toInt(), 10000     // r22
             )
         )
     }

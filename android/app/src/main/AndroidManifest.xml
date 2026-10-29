@@ -24,6 +24,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     
+    <!-- Notifications for recording service (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
     <!-- Camera hardware feature -->
     <uses-feature android:name="android.hardware.camera2" android:required="true" />
     <uses-feature android:name="android.hardware.camera.level.full" android:required="false" />

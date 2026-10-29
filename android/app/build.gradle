@@ -52,7 +52,7 @@ android {
 
 dependencies {
     // Capacitor
-    implementation 'com.capacitorjs:core:5.7.0'
+    implementation project(':capacitor-android')
     
     // AndroidX
     implementation 'androidx.core:core-ktx:1.12.0'

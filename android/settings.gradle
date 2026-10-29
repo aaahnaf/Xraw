@@ -1,1 +1,5 @@
 include ':app'
+
+// Include Capacitor Android library from node_modules
+include ':capacitor-android'
+project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')

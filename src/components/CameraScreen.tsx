@@ -92,9 +92,9 @@ export function CameraScreen({
   const dims = getResolutionDimensions(settings.resolution);
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none bg-black">
+    <div className="relative w-full h-full overflow-hidden select-none" style={{ background: 'transparent' }}>
       {/* Native Camera Preview - transparent to show native view */}
-      <div className="absolute inset-0" />
+      <div className="absolute inset-0" style={{ background: 'transparent' }} />
       
       {/* Grid Overlay */}
       {settings.showGrid && (
@@ -109,18 +109,18 @@ export function CameraScreen({
 
       {/* Native Unavailable Overlay */}
       {!nativeAvailable && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
+        <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: 'rgba(0, 0, 0, 0.85)' }}>
           <div className="text-center space-y-3 px-8">
             <div className="text-sm font-medium text-amber-400">Camera Unavailable</div>
-            <div className="text-xs text-neutral-500">Install the Android APK</div>
+            <div className="text-xs text-neutral-400">Install the Android APK</div>
           </div>
         </div>
       )}
 
       {/* Preview Not Active */}
       {nativeAvailable && !previewActive && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/80">
-          <div className="text-xs text-neutral-500">Preview Not Active</div>
+        <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ background: 'rgba(0, 0, 0, 0.7)' }}>
+          <div className="text-xs text-neutral-400">Preview Not Active</div>
         </div>
       )}
 
@@ -197,11 +197,12 @@ export function CameraScreen({
             </div>
           </div>
 
-          {/* Log Profile Selector - Only in log_video mode */}
+          {/* Log Profile Warning - Only in log_video mode */}
           {settings.mode === 'log_video' && (
             <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40">
-              <div className="px-3 py-1.5 rounded bg-black/80 border border-amber-500/50 text-xs font-mono text-amber-400">
-                Log curves not yet implemented
+              <div className="px-4 py-2 rounded bg-red-900/80 border border-red-500 text-xs font-mono text-red-200 text-center">
+                ⚠ Log profiles NOT implemented<br />
+                <span className="text-red-300 text-[10px]">Output is standard Rec.709</span>
               </div>
             </div>
           )}

@@ -74,8 +74,8 @@ class CameraPreviewView @JvmOverloads constructor(
 
     override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean {
         Log.i(TAG, "Surface texture destroyed")
-        this.surface?.release()
-        this.surface = null
+        // Don't release surface here - it will be released in onDetachedFromWindow
+        // This prevents double-release if the surface is destroyed before the view is detached
         this.surfaceTexture = null
         this.isSurfaceAvailable = false
         onSurfaceDestroyed?.invoke()

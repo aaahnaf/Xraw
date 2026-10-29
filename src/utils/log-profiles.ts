@@ -4,13 +4,12 @@ import type { LogProfile, LogProfileInfo } from '../types';
  * Log Profile Catalog
  * 
  * Documents the implementation status of each log profile.
- * Each profile must transform actual captured video pixels before encoding.
  * 
- * Implementation notes:
- * - All curves are applied in native code (Kotlin/OpenGL ES)
- * - Input color space: Camera native (typically BT.709 or device-specific)
- * - Output color space: Scene-referred log
- * - Precision: 32-bit float processing, 8-bit or 10-bit output
+ * IMPORTANT: Log profiles are NOT currently implemented.
+ * - Shaders are defined in LogVideoEncoder.kt but never applied
+ * - Output is standard Rec.709 regardless of selected profile
+ * - Formulas need verification against official specifications
+ * - Do not claim these produce authentic log footage
  */
 
 export const LOG_PROFILES: Record<LogProfile, LogProfileInfo> = {
@@ -28,90 +27,90 @@ export const LOG_PROFILES: Record<LogProfile, LogProfileInfo> = {
     name: 'S-Log3',
     vendor: 'Sony',
     variant: 'S-Log3 (IEC 61966-2-1)',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'Sony S-Log3 per official specification. 18% middle gray at 420/1023. Validated against Sony reference values.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   slog2: {
     id: 'slog2',
     name: 'S-Log2',
     vendor: 'Sony',
     variant: 'S-Log2',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'Sony S-Log2 per official specification. Older curve with less dynamic range than S-Log3. 18% middle gray at ~0.36.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   clog3: {
     id: 'clog3',
     name: 'C-Log3',
     vendor: 'Canon',
     variant: 'C-Log3 (Cinema EOS)',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'Canon C-Log3 per Canon official specification. 18% middle gray at 0.398.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   vlog: {
     id: 'vlog',
     name: 'V-Log',
     vendor: 'Panasonic',
     variant: 'V-Log (Varicam)',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'Panasonic V-Log per official specification. 18% middle gray at 0.427.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   logc: {
     id: 'logc',
     name: 'LogC3',
     vendor: 'ARRI',
     variant: 'LogC3 (EI 800)',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'ARRI LogC3 at EI 800 per ARRI official specification. 18% middle gray at 0.391.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   flog: {
     id: 'flog',
     name: 'F-Log',
     vendor: 'Fujifilm',
     variant: 'F-Log',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'Fujifilm F-Log per official specification. 18% middle gray at 0.429.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   nlog: {
     id: 'nlog',
     name: 'N-Log',
     vendor: 'Nikon',
     variant: 'N-Log',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'Nikon N-Log per official specification. 18% middle gray at 0.5.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   dlog: {
     id: 'dlog',
     name: 'D-Log',
     vendor: 'DJI',
     variant: 'D-Log',
-    implemented: true,
-    approximate: true,
-    notes: 'DJI D-Log approximation. Exact curve not publicly documented. Based on observed behavior and community analysis.',
+    implemented: false,
+    approximate: false,
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   redlogfilm: {
     id: 'redlogfilm',
     name: 'REDlogFilm',
     vendor: 'RED',
     variant: 'REDlogFilm',
-    implemented: true,
+    implemented: false,
     approximate: false,
-    notes: 'RED REDlogFilm per RED official specification. Film-like density curve.',
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
   bmfilm: {
     id: 'bmfilm',
     name: 'Film',
     vendor: 'Blackmagic',
     variant: 'Blackmagic Film (Gen 5)',
-    implemented: true,
-    approximate: true,
-    notes: 'Blackmagic Film curve approximation. Exact Gen 5 curve not publicly documented. Based on observed behavior.',
+    implemented: false,
+    approximate: false,
+    notes: 'NOT IMPLEMENTED. Shader defined but never applied. Output is Rec.709.',
   },
 };
 

@@ -98,21 +98,21 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
           <h2 className="text-xs font-semibold mb-3 text-white/60 tracking-wider">VIDEO CAPABILITY</h2>
           <div className="space-y-3">
             <div className="p-3 rounded-lg bg-black/40 border border-white/10">
-              <div className="text-sm font-medium mb-1 text-green-400">✓ 1080p @ 24fps</div>
+              <div className="text-sm font-medium mb-1 text-red-400">✗ Recording Not Implemented</div>
               <div className="text-xs text-white/60">
-                RAW still acquisition at 24fps is supported.
+                Native recording methods are stubs. No actual video recording is possible.
               </div>
             </div>
             <div className="p-3 rounded-lg bg-black/40 border border-white/10">
-              <div className="text-sm font-medium mb-1 text-amber-400">⚠ 1440p @ 24fps</div>
+              <div className="text-sm font-medium mb-1 text-amber-400">⚠ 1080p @ 24fps (Target)</div>
               <div className="text-xs text-white/60">
-                Experimental. Higher resolution may exceed sustained bandwidth.
+                Desired mode but requires implementation of native recording pipeline.
               </div>
             </div>
             <div className="p-3 rounded-lg bg-black/40 border border-white/10">
-              <div className="text-sm font-medium mb-1 text-white/60">ℹ Continuous RAW Video</div>
+              <div className="text-sm font-medium mb-1 text-white/60">ℹ Log Profiles</div>
               <div className="text-xs text-white/60">
-                Requires device-specific hardware pipeline verification.
+                Log curve shaders defined but never applied. Output is standard Rec.709.
               </div>
             </div>
           </div>
@@ -122,9 +122,9 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
         <section className="p-4 rounded-xl bg-neutral-900">
           <h2 className="text-xs font-semibold mb-3 text-white/60 tracking-wider">FILE FORMAT</h2>
           <div className="space-y-2">
-            <InfoRow label=".xraw" value="Uncompressed RAW container" status="verified" />
-            <InfoRow label=".xrawlc" value="Lossless compressed RAW" status="verified" />
-            <InfoRow label=".mlv" value="Magic Lantern Video format" status="verified" />
+            <InfoRow label=".xraw" value="Uncompressed RAW container" status="untested" />
+            <InfoRow label=".xrawlc" value="Lossless compressed (NOT IMPLEMENTED)" status="unsupported" />
+            <InfoRow label=".mlv" value="Magic Lantern Video format" status="untested" />
             <InfoRow label="Version" value="1" />
             <InfoRow label="Header Size" value="64 bytes" />
             <InfoRow label="Endianness" value="Big-endian" />
@@ -138,9 +138,10 @@ export function DiagnosticsScreen({ cameraInfo, onBack }: Props) {
           <div className="space-y-2">
             <InfoRow label="Frontend UI" value="✓ Implemented" status="verified" />
             <InfoRow label="Native Bridge" value="✓ Capacitor 5" status="verified" />
-            <InfoRow label="Camera Plugin" value="✓ Camera2 API" status="verified" />
-            <InfoRow label="XRAW Codec" value="✓ Lossless verified" status="verified" />
-            <InfoRow label="MLV Writer" value="✓ Format implemented" status="verified" />
+            <InfoRow label="Camera Plugin" value="⚠ Stub implementation" status="untested" />
+            <InfoRow label="XRAW Codec" value="⚠ Not actually lossless" status="untested" />
+            <InfoRow label="MLV Writer" value="⚠ Format issues" status="untested" />
+            <InfoRow label="Recording" value="✗ Not implemented" status="unsupported" />
             <InfoRow label="Device Testing" value="⚠ Requires device" status="untested" />
           </div>
         </section>
