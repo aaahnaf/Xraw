@@ -71,6 +71,10 @@ export function useCamera() {
     async function init() {
       setInitializing(true);
       
+      // Wait for Capacitor to be fully ready
+      // This prevents race conditions where frontend checks before plugin is registered
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const available = NativeBridge.available;
       setNativeAvailable(available);
 

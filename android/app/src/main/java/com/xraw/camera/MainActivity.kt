@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.getcapacitor.BridgeActivity
-import com.getcapacitor.Plugin
 
 /**
  * XRAW Camera - Main Activity
@@ -19,6 +18,10 @@ class MainActivity : BridgeActivity() {
     private var cameraPreviewView: CameraPreviewView? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Register the XRawCamera plugin BEFORE calling super.onCreate()
+        // This is required for Capacitor 5 to make the plugin available to the web frontend
+        registerPlugin(XRawCameraPlugin::class.java)
+        
         super.onCreate(savedInstanceState)
         
         // BridgeActivity creates its own WebView internally

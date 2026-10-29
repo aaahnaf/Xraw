@@ -9,10 +9,22 @@
 // Detect if we're running inside Capacitor with the native plugin
 function isNativeAvailable(): boolean {
   try {
-    // Check for Capacitor's native bridge
     const win = window as any;
-    return !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
-  } catch {
+    
+    // Debug logging
+    console.log('[XRAW] Checking native availability...');
+    console.log('[XRAW] window.Capacitor:', !!win.Capacitor);
+    console.log('[XRAW] window.Capacitor.isNativePlatform:', !!win.Capacitor?.isNativePlatform);
+    console.log('[XRAW] isNativePlatform():', win.Capacitor?.isNativePlatform?.());
+    console.log('[XRAW] window.Capacitor.Plugins:', win.Capacitor?.Plugins);
+    console.log('[XRAW] XRawCamera plugin:', win.Capacitor?.Plugins?.XRawCamera);
+    
+    const available = !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
+    console.log('[XRAW] Native available:', available);
+    
+    return available;
+  } catch (error) {
+    console.error('[XRAW] Error checking native availability:', error);
     return false;
   }
 }
@@ -20,17 +32,40 @@ function isNativeAvailable(): boolean {
 async function callNative(method: string, args: Record<string, any> = {}): Promise<any> {
   const win = window as any;
   
-  if (!win.Capacitor || !win.Capacitor.Plugins || !win.Capacitor.Plugins.XRawCamera) {
+  console.log(`[XRAW] Calling native method: ${method}`, args);
+  
+  if (!win.Capacitor) {
+    console.error('[XRAW] window.Capacitor is undefined');
+    throw new Error('Capacitor not available');
+  }
+  
+  if (!win.Capacitor.Plugins) {
+    console.error('[XRAW] window.Capacitor.Plugins is undefined');
+    throw new Error('Capacitor Plugins not available');
+  }
+  
+  if (!win.Capacitor.Plugins.XRawCamera) {
+    console.error('[XRAW] XRawCamera plugin is undefined');
+    console.log('[XRAW] Available plugins:', Object.keys(win.Capacitor.Plugins));
     throw new Error('XRawCamera native plugin not available');
   }
   
   const plugin = win.Capacitor.Plugins.XRawCamera;
   
   if (typeof plugin[method] !== 'function') {
+    console.error(`[XRAW] Method ${method} not found on XRawCamera plugin`);
+    console.log('[XRAW] Available methods:', Object.keys(plugin));
     throw new Error(`Method ${method} not found on XRawCamera plugin`);
   }
   
-  return plugin[method](args);
+  try {
+    const result = await plugin[method](args);
+    console.log(`[XRAW] Method ${method} result:`, result);
+    return result;
+  } catch (error) {
+    console.error(`[XRAW] Method ${method} error:`, error);
+    throw error;
+  }
 }
 
 function addNativeListener(event: string, callback: (data: any) => void): () => void {
