@@ -33,21 +33,27 @@ import java.util.zip.CRC32
 class MlvWriter(private val file: File) {
     
     companion object {
-        const val MLV_MAGIC = 0x4D4C5649 // "MLVI"
         const val MLV_VERSION = 2.0
         
-        // Block types
-        const val BLOCK_MLVI = 0x4D4C5649 // "MLVI" - Main header
-        const val BLOCK_RAWI = 0x52415749 // "RAWI" - RAW info
-        const val BLOCK_EXPO = 0x4558504F // "EXPO" - Exposure
-        const val BLOCK_WBAL = 0x5742414C // "WBAL" - White balance
-        const val BLOCK_LENS = 0x4C454E53 // "LENS" - Lens
-        const val BLOCK_RTC = 0x52544320 // "RTC " - Real-time clock
-        const val BLOCK_IDNT = 0x49444E54 // "IDNT" - Identity
-        const val BLOCK_VIDF = 0x56494446 // "VIDF" - Video frame
-        const val BLOCK_INDX = 0x494E4458 // "INDX" - Index
+        // Block types as ASCII strings (4 bytes each)
+        const val BLOCK_MLVI = "MLVI" // Main header
+        const val BLOCK_RAWI = "RAWI" // RAW info
+        const val BLOCK_EXPO = "EXPO" // Exposure
+        const val BLOCK_WBAL = "WBAL" // White balance
+        const val BLOCK_LENS = "LENS" // Lens
+        const val BLOCK_RTC = "RTC " // Real-time clock (with space)
+        const val BLOCK_IDNT = "IDNT" // Identity
+        const val BLOCK_VIDF = "VIDF" // Video frame
+        const val BLOCK_INDX = "INDX" // Index
         
         const val BLOCK_ALIGNMENT = 64
+        
+        // Helper to write block tag as ASCII
+        fun writeBlockTag(buffer: ByteBuffer, tag: String) {
+            val bytes = tag.toByteArray(Charsets.US_ASCII)
+            require(bytes.size == 4) { "Block tag must be exactly 4 bytes: $tag" }
+            buffer.put(bytes)
+        }
     }
     
     @Volatile private var outputStream: FileOutputStream? = null
@@ -131,7 +137,7 @@ class MlvWriter(private val file: File) {
         buffer.order(ByteOrder.LITTLE_ENDIAN) // MLV uses little-endian
         
         // Block header
-        buffer.putInt(BLOCK_MLVI)
+        writeBlockTag(buffer, BLOCK_MLVI)
         val blockSizePos = buffer.position()
         buffer.putInt(0) // Placeholder for block size
         buffer.putLong(timestampMillis * 1000) // Timestamp in microseconds
@@ -175,7 +181,7 @@ class MlvWriter(private val file: File) {
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         
         // Block header
-        buffer.putInt(BLOCK_RAWI)
+        writeBlockTag(buffer, BLOCK_RAWI)
         val blockSizePos = buffer.position()
         buffer.putInt(0)
         
@@ -228,7 +234,7 @@ class MlvWriter(private val file: File) {
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         
         // Block header
-        buffer.putInt(BLOCK_EXPO)
+        writeBlockTag(buffer, BLOCK_EXPO)
         val blockSizePos = buffer.position()
         buffer.putInt(0)
         
@@ -262,7 +268,7 @@ class MlvWriter(private val file: File) {
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         
         // Block header
-        buffer.putInt(BLOCK_WBAL)
+        writeBlockTag(buffer, BLOCK_WBAL)
         val blockSizePos = buffer.position()
         buffer.putInt(0)
         
@@ -298,7 +304,7 @@ class MlvWriter(private val file: File) {
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         
         // Block header
-        buffer.putInt(BLOCK_RTC)
+        writeBlockTag(buffer, BLOCK_RTC)
         val blockSizePos = buffer.position()
         buffer.putInt(0)
         
@@ -326,7 +332,7 @@ class MlvWriter(private val file: File) {
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         
         // Block header
-        buffer.putInt(BLOCK_IDNT)
+        writeBlockTag(buffer, BLOCK_IDNT)
         val blockSizePos = buffer.position()
         buffer.putInt(0)
         
@@ -369,7 +375,7 @@ class MlvWriter(private val file: File) {
             buffer.order(ByteOrder.LITTLE_ENDIAN)
             
             // Block header
-            buffer.putInt(BLOCK_VIDF)
+            writeBlockTag(buffer, BLOCK_VIDF)
             val blockSizePos = buffer.position()
             buffer.putInt(0)
             
@@ -457,7 +463,7 @@ class MlvWriter(private val file: File) {
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         
         // Block header
-        buffer.putInt(BLOCK_INDX)
+        writeBlockTag(buffer, BLOCK_INDX)
         val blockSizePos = buffer.position()
         buffer.putInt(0)
         

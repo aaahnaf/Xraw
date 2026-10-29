@@ -242,8 +242,8 @@ class XRawWriter(private val file: File) {
             currentOffset += buffer.array().size
             currentFileSize = currentOffset
 
-            // Clear entries after writing checkpoint (keep list bounded)
-            indexEntries.clear()
+            // Don't clear entries - keep all for final index
+            // indexEntries.clear()  // REMOVED - keep all entries
         } catch (e: Exception) {
             // Index write failure is non-fatal — frames are still intact
         }
@@ -401,16 +401,16 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
             "Compressed bit depth $bd doesn't match codec $bitDepth"
         }
 
-        // Validate we have enough data for all residuals
-        val expectedSize = 5 + (w * h * 4)
+        // Validate we have enough data for all residuals (now 2 bytes each)
+        val expectedSize = 5 + (w * h * 2)
         require(compressed.size >= expectedSize) {
             "Compressed data truncated: expected $expectedSize bytes, got ${compressed.size}"
         }
 
-        // Unpack residuals
+        // Unpack residuals (16-bit signed integers)
         val residuals = IntArray(w * h)
         for (i in residuals.indices) {
-            residuals[i] = buffer.int
+            residuals[i] = buffer.short.toInt()
         }
 
         // Reconstruct from residuals
@@ -444,17 +444,18 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
 
     private fun medianPredict(a: Int, b: Int, c: Int): Int {
         // JPEG-LOCO median edge prediction
+        // Returns the median of (a, b, a+b-c)
         return if (a > b) {
-            c + (a - b)
+            if (c > a) a else if (c < b) b else c
         } else {
-            c - (b - a)
+            if (c > b) a else if (c < a) b else c
         }
     }
 
     private fun packResiduals(residuals: IntArray): ByteArray {
         // Header: width(2) + height(2) + bitDepth(1) = 5 bytes
-        // Each residual: 4 bytes (Int) — no clamping, no overflow
-        val output = ByteBuffer.allocate(5 + residuals.size * 4)
+        // Each residual: 2 bytes (Int16) - actual compression
+        val output = ByteBuffer.allocate(5 + residuals.size * 2)
         output.order(ByteOrder.BIG_ENDIAN)
 
         // Header
@@ -462,9 +463,11 @@ class XRawLCCodec(private val width: Int, private val height: Int, private val b
         output.putShort(height.toShort())
         output.put(bitDepth.toByte())
 
-        // Residuals as 32-bit signed integers
+        // Residuals as 16-bit signed integers
         for (r in residuals) {
-            output.putInt(r)
+            // Clamp to 16-bit range
+            val clamped = r.coerceIn(-32768, 32767)
+            output.putShort(clamped.toShort())
         }
 
         return output.array()
