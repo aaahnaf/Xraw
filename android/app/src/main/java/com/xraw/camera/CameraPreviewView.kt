@@ -60,6 +60,14 @@ class CameraPreviewView @JvmOverloads constructor(
      */
     fun isSurfaceReady(): Boolean = isSurfaceAvailable && surface != null
 
+    /**
+     * Set the buffer size for the SurfaceTexture.
+     * This should be called before the surface is used by the camera.
+     */
+    fun setBufferSize(width: Int, height: Int) {
+        surfaceTexture?.setDefaultBufferSize(width, height)
+    }
+
     override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
         Log.i(TAG, "Surface texture available: ${width}x${height}")
         this.surfaceTexture = surfaceTexture
@@ -74,8 +82,9 @@ class CameraPreviewView @JvmOverloads constructor(
 
     override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean {
         Log.i(TAG, "Surface texture destroyed")
-        // Don't release surface here - it will be released in onDetachedFromWindow
-        // This prevents double-release if the surface is destroyed before the view is detached
+        // Release the surface when the texture is destroyed
+        surface?.release()
+        surface = null
         this.surfaceTexture = null
         this.isSurfaceAvailable = false
         onSurfaceDestroyed?.invoke()

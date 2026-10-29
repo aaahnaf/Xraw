@@ -52,7 +52,7 @@ class XRawCameraPlugin : Plugin() {
     // Camera2 objects
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
-    private var previewImageReader: ImageReader? = null
+    private var previewSurface: Surface? = null  // Store preview surface for manual controls
     private var rawImageReader: ImageReader? = null
 
     // Camera characteristics
@@ -87,6 +87,7 @@ class XRawCameraPlugin : Plugin() {
     private var currentWhiteBalance: Int? = null
     private var currentFocusDistance: Float? = null
     private var currentZoom: Float = 1.0f
+    private var settings: dynamic = null  // Store frontend settings for frame rate
 
     // Pending call for async operations
     private val pendingOpenCall = AtomicReference<PluginCall?>(null)
@@ -120,46 +121,65 @@ class XRawCameraPlugin : Plugin() {
 
     @PluginMethod
     override fun requestPermissions(call: PluginCall) {
+        // Only request camera permission - it's the only one we actually need
+        // Storage permissions are handled by scoped storage on Android 10+
+        val perms = arrayOf(Manifest.permission.CAMERA)
+        
+        // Check if we already have permission
+        val hasPermission = context.checkSelfPermission(Manifest.permission.CAMERA) == 
+                           PackageManager.PERMISSION_GRANTED
+        
+        if (hasPermission) {
+            call.resolve()
+            return
+        }
+        
         // Store the call for later resolution
         pendingPermissionCall = call
         
-        // Use Android's native permission request mechanism
-        val perms = mutableListOf(
-            Manifest.permission.CAMERA
-        )
-        if (Build.VERSION.SDK_INT < 33) {
-            perms.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-        } else {
-            perms.add(Manifest.permission.READ_MEDIA_IMAGES)
-            perms.add(Manifest.permission.READ_MEDIA_VIDEO)
-            perms.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        
-        activity.requestPermissions(perms.toTypedArray(), 1001)
-        // Don't resolve yet - wait for onRequestPermissionsResult
+        // Request permission from the activity
+        activity.requestPermissions(perms, 1001)
     }
 
     private var pendingPermissionCall: PluginCall? = null
 
-    override fun onRequestPermissionsResult(
+    // Capacitor uses handleRequestPermissionsResult, not onRequestPermissionsResult
+    override fun handleRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        
+    ): Boolean {
         if (requestCode == 1001) {
-            val call = pendingPermissionCall ?: return
+            val call = pendingPermissionCall
             pendingPermissionCall = null
             
-            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            
-            if (allGranted) {
-                call.resolve()
-            } else {
-                call.reject("Permission denied")
+            if (call == null) {
+                return true  // Already handled or no pending call
             }
+            
+            // Check if camera permission was granted
+            // Empty grantResults means request was cancelled
+            if (grantResults.isEmpty()) {
+                call.reject("Permission request cancelled")
+                return true
+            }
+            
+            // Find the camera permission result
+            val cameraPermissionIndex = permissions.indexOf(Manifest.permission.CAMERA)
+            if (cameraPermissionIndex >= 0 && cameraPermissionIndex < grantResults.size) {
+                if (grantResults[cameraPermissionIndex] == PackageManager.PERMISSION_GRANTED) {
+                    call.resolve()
+                } else {
+                    call.reject("Camera permission denied")
+                }
+            } else {
+                call.reject("Camera permission not found in result")
+            }
+            
+            return true
         }
+        
+        return super.handleRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     // ==================== CAMERA ENUMERATION ====================
@@ -442,9 +462,18 @@ class XRawCameraPlugin : Plugin() {
                 return
             }
 
+            // Set preview size to a supported 4:3 aspect ratio
+            val chars = cameraCharacteristics!!
+            val config = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+            val previewSizes = config?.getOutputSizes(android.graphics.ImageFormat.YUV_420_888)
+            val previewSize = chooseOptimalPreviewSize(previewSizes, 1280, 960)  // 4:3 aspect
+            previewView.setBufferSize(previewSize.width, previewSize.height)
+
             // Wait for the surface to be available
             if (!previewView.isSurfaceReady()) {
                 previewView.setOnSurfaceReadyListener { surface ->
+                    // Clear the listener to prevent multiple calls
+                    previewView.setOnSurfaceReadyListener(null)
                     startPreviewWithSurface(device, surface, call)
                 }
             } else {
@@ -463,6 +492,9 @@ class XRawCameraPlugin : Plugin() {
 
     private fun startPreviewWithSurface(device: CameraDevice, surface: Surface, call: PluginCall) {
         try {
+            // Store the surface for manual controls
+            previewSurface = surface
+            
             val surfaces = listOf(surface)
 
             device.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
@@ -473,8 +505,14 @@ class XRawCameraPlugin : Plugin() {
                     requestBuilder.addTarget(surface)
                     applySettingsToRequest(requestBuilder)
 
-                    requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                        android.util.Range(15, 30))
+                    // Use the requested frame rate if available, otherwise use default
+                    val fpsRange = when (settings?.frameRate) {
+                        24 -> android.util.Range(24, 24)
+                        25 -> android.util.Range(25, 25)
+                        30 -> android.util.Range(30, 30)
+                        else -> android.util.Range(15, 30)  // Default
+                    }
+                    requestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange)
 
                     session.setRepeatingRequest(requestBuilder.build(), null, cameraHandler)
 
@@ -486,13 +524,21 @@ class XRawCameraPlugin : Plugin() {
                 }
 
                 override fun onConfigureFailed(session: CameraCaptureSession) {
+                    previewSurface = null
                     call.reject("Preview configuration failed")
+                }
+                
+                override fun onClosed(session: CameraCaptureSession) {
+                    previewSurface = null
+                    super.onClosed(session)
                 }
             }, cameraHandler)
 
         } catch (e: CameraAccessException) {
+            previewSurface = null
             call.reject("Camera access error during preview: ${e.message}")
         } catch (e: Exception) {
+            previewSurface = null
             call.reject("Failed to start preview: ${e.message}", e)
         }
     }
@@ -595,8 +641,15 @@ class XRawCameraPlugin : Plugin() {
 
         try {
             val requestBuilder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-            if (previewImageReader != null) requestBuilder.addTarget(previewImageReader!!.surface)
-            if (rawImageReader != null) requestBuilder.addTarget(rawImageReader!!.surface)
+            
+            // Add the preview surface if available
+            previewSurface?.let { requestBuilder.addTarget(it) }
+            
+            // Add raw image reader if recording
+            if (rawImageReader != null) {
+                requestBuilder.addTarget(rawImageReader!!.surface)
+            }
+            
             applySettingsToRequest(requestBuilder)
 
             session.setRepeatingRequest(requestBuilder.build(), null, cameraHandler)

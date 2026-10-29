@@ -45,7 +45,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   height: 100dvh; /* Use dynamic viewport height for mobile */
-  background: var(--bg-primary);
+  background: transparent;
   color: var(--text-primary);
   overflow: hidden; /* Root container doesn't scroll */
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;

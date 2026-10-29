@@ -134,9 +134,9 @@ export function useCamera() {
         cleanups.push(NativeBridge.onRecordingProgress((data) => {
           setRecording(prev => ({
             ...prev,
-            frameCount: data.frameCount || prev.frameCount,
-            droppedFrames: data.droppedFrames || prev.droppedFrames,
-            currentFileSize: data.fileSize || prev.currentFileSize,
+            frameCount: data.frameCount ?? prev.frameCount,
+            droppedFrames: data.droppedFrames ?? prev.droppedFrames,
+            currentFileSize: data.fileSize ?? prev.currentFileSize,
           }));
         }));
 
@@ -145,8 +145,8 @@ export function useCamera() {
             ...prev,
             isRecording: false,
             startTime: null,
-            frameCount: data.totalFrames || prev.frameCount,
-            droppedFrames: data.droppedFrames || prev.droppedFrames,
+            frameCount: data.totalFrames ?? prev.frameCount,
+            droppedFrames: data.droppedFrames ?? prev.droppedFrames,
           }));
         }));
 
@@ -199,23 +199,6 @@ export function useCamera() {
       addError('CAMERA_OPEN_FAILED', err.message || 'Failed to open camera', 'error', true);
     }
   }, [nativeAvailable, cameraInfo, addError]);
-
-  const closeCamera = useCallback(async () => {
-    if (recording.isRecording) {
-      await stopRecording();
-    }
-    
-    try {
-      if (nativeAvailable) {
-        await NativeBridge.closeCamera();
-      }
-    } catch (err: any) {
-      addError('CAMERA_CLOSE_FAILED', err.message || 'Failed to close camera', 'warning', true);
-    }
-    
-    setIsCameraOpen(false);
-    setPreviewActive(false);
-  }, [recording.isRecording, nativeAvailable, addError]);
 
   const startRecording = useCallback(async () => {
     if (!nativeAvailable || recording.isRecording) return;
@@ -274,7 +257,15 @@ export function useCamera() {
   }, [nativeAvailable, recording.isRecording, settings, addError]);
 
   const stopRecording = useCallback(async () => {
-    if (!nativeAvailable) return;
+    if (!nativeAvailable) {
+      // If not native, just reset the state
+      setRecording(prev => ({
+        ...prev,
+        isRecording: false,
+        startTime: null,
+      }));
+      return;
+    }
 
     try {
       let result;
@@ -291,14 +282,37 @@ export function useCamera() {
         ...prev,
         isRecording: false,
         startTime: null,
-        frameCount: result.totalFrames || prev.frameCount,
-        droppedFrames: result.droppedFrames || prev.droppedFrames,
-        measuredRecordingFps: (result as any).measuredFps || prev.measuredRecordingFps,
+        frameCount: result.totalFrames ?? prev.frameCount,
+        droppedFrames: result.droppedFrames ?? prev.droppedFrames,
+        measuredRecordingFps: (result as any).measuredFps ?? prev.measuredRecordingFps,
       }));
     } catch (err: any) {
+      // Even if stop fails, reset recording state to prevent stuck state
+      setRecording(prev => ({
+        ...prev,
+        isRecording: false,
+        startTime: null,
+      }));
       addError('STOP_FAILED', err.message || 'Failed to stop recording', 'error', true);
     }
   }, [nativeAvailable, settings.mode, addError]);
+
+  const closeCamera = useCallback(async () => {
+    if (recording.isRecording) {
+      await stopRecording();
+    }
+    
+    try {
+      if (nativeAvailable) {
+        await NativeBridge.closeCamera();
+      }
+    } catch (err: any) {
+      addError('CAMERA_CLOSE_FAILED', err.message || 'Failed to close camera', 'warning', true);
+    }
+    
+    setIsCameraOpen(false);
+    setPreviewActive(false);
+  }, [recording.isRecording, nativeAvailable, addError, stopRecording]);
 
   const captureRawStill = useCallback(async () => {
     if (!nativeAvailable) {

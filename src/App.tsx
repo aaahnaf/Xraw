@@ -33,7 +33,7 @@ function App() {
   // Show loading/initializing state
   if (initializing) {
     return (
-      <div className="w-screen h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
+      <div className="w-screen h-screen flex items-center justify-center" style={{ background: 'rgba(0, 0, 0, 0.9)' }}>
         <div className="text-center space-y-3">
           <div className="text-xl font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>XRAW</div>
           <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>Initializing...</div>
@@ -63,7 +63,7 @@ function App() {
     <div 
       className="w-full h-full flex flex-col overflow-hidden relative" 
       style={{ 
-        background: 'var(--bg-primary)',
+        background: 'transparent',
         height: '100dvh',
         paddingBottom: showBottomNav ? '64px' : '0' // Reserve space for bottom nav
       }}
