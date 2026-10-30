@@ -87,16 +87,42 @@ export function useCamera() {
       }
 
       try {
-        // Check permissions
-        const perms = await NativeBridge.checkPermissions();
+        console.log('[XRAW] Starting initialization...');
+        
+        // Check permissions with timeout
+        console.log('[XRAW] Checking permissions...');
+        const perms = await Promise.race([
+          NativeBridge.checkPermissions(),
+          new Promise<{ camera: string; storage: string }>((_, reject) => 
+            setTimeout(() => reject(new Error('Permission check timeout')), 5000)
+          )
+        ]);
+        console.log('[XRAW] Permissions:', perms);
+        
         if (perms.camera !== 'granted') {
-          await NativeBridge.requestPermissions();
+          console.log('[XRAW] Requesting camera permission...');
+          await Promise.race([
+            NativeBridge.requestPermissions(),
+            new Promise<void>((_, reject) => 
+              setTimeout(() => reject(new Error('Permission request timeout')), 10000)
+            )
+          ]);
+          console.log('[XRAW] Permission granted');
         }
 
-        // Enumerate cameras
-        const result = await NativeBridge.enumerateCameras();
+        // Enumerate cameras with timeout
+        console.log('[XRAW] Enumerating cameras...');
+        const result = await Promise.race([
+          NativeBridge.enumerateCameras(),
+          new Promise<{ cameras: any[] }>((_, reject) => 
+            setTimeout(() => reject(new Error('Camera enumeration timeout')), 5000)
+          )
+        ]);
+        console.log('[XRAW] Cameras found:', result.cameras?.length || 0);
+        
         if (!cancelled && result.cameras && result.cameras.length > 0) {
           const cam = result.cameras[0];
+          console.log('[XRAW] Setting camera info for camera:', cam.id);
           setCameraInfo({
             id: cam.id,
             facing: cam.facing,
@@ -115,61 +141,74 @@ export function useCamera() {
               colorFilterArrangement: cam.sensorInfo.colorFilterArrangement ?? -1,
             } : null,
           });
+        } else if (!cancelled) {
+          console.warn('[XRAW] No cameras found or empty result');
+          addError('NO_CAMERAS', 'No cameras found on device', 'warning', false);
         }
 
         // Register native event listeners
+        console.log('[XRAW] Registering event listeners...');
         const cleanups: (() => void)[] = [];
 
-        cleanups.push(NativeBridge.onCameraError((data) => {
-          addError('CAMERA_ERROR', data.error || 'Unknown camera error', 'error', true);
-        }));
-
-        cleanups.push(NativeBridge.onCameraDisconnected(() => {
-          setIsCameraOpen(false);
-          setPreviewActive(false);
-          addError('CAMERA_DISCONNECTED', 'Camera disconnected', 'error', true);
-        }));
-
-        cleanups.push(NativeBridge.onRecordingProgress((data) => {
-          setRecording(prev => ({
-            ...prev,
-            frameCount: data.frameCount ?? prev.frameCount,
-            droppedFrames: data.droppedFrames ?? prev.droppedFrames,
-            currentFileSize: data.fileSize ?? prev.currentFileSize,
+        try {
+          cleanups.push(NativeBridge.onCameraError((data) => {
+            addError('CAMERA_ERROR', data.error || 'Unknown camera error', 'error', true);
           }));
-        }));
 
-        cleanups.push(NativeBridge.onRecordingStopped((data) => {
-          setRecording(prev => ({
-            ...prev,
-            isRecording: false,
-            startTime: null,
-            frameCount: data.totalFrames ?? prev.frameCount,
-            droppedFrames: data.droppedFrames ?? prev.droppedFrames,
+          cleanups.push(NativeBridge.onCameraDisconnected(() => {
+            setIsCameraOpen(false);
+            setPreviewActive(false);
+            addError('CAMERA_DISCONNECTED', 'Camera disconnected', 'error', true);
           }));
-        }));
 
-        cleanups.push(NativeBridge.onFrameDropped((data) => {
-          addError('FRAME_DROPPED', `Frame dropped: ${data.reason} (total: ${data.totalDropped})`, 'warning', false);
-        }));
+          cleanups.push(NativeBridge.onRecordingProgress((data) => {
+            setRecording(prev => ({
+              ...prev,
+              frameCount: data.frameCount ?? prev.frameCount,
+              droppedFrames: data.droppedFrames ?? prev.droppedFrames,
+              currentFileSize: data.fileSize ?? prev.currentFileSize,
+            }));
+          }));
 
-        cleanups.push(NativeBridge.onPreviewStarted(() => {
-          setPreviewActive(true);
-        }));
+          cleanups.push(NativeBridge.onRecordingStopped((data) => {
+            setRecording(prev => ({
+              ...prev,
+              isRecording: false,
+              startTime: null,
+              frameCount: data.totalFrames ?? prev.frameCount,
+              droppedFrames: data.droppedFrames ?? prev.droppedFrames,
+            }));
+          }));
 
-        cleanups.push(NativeBridge.onPreviewRestored(() => {
-          setPreviewActive(true);
-        }));
+          cleanups.push(NativeBridge.onFrameDropped((data) => {
+            addError('FRAME_DROPPED', `Frame dropped: ${data.reason} (total: ${data.totalDropped})`, 'warning', false);
+          }));
 
-        cleanupFnsRef.current = cleanups;
+          cleanups.push(NativeBridge.onPreviewStarted(() => {
+            setPreviewActive(true);
+          }));
+
+          cleanups.push(NativeBridge.onPreviewRestored(() => {
+            setPreviewActive(true);
+          }));
+
+          cleanupFnsRef.current = cleanups;
+          console.log('[XRAW] Event listeners registered successfully');
+        } catch (listenerErr: any) {
+          console.error('[XRAW] Failed to register event listeners:', listenerErr);
+          // Don't fail initialization just because listeners failed
+        }
       } catch (err: any) {
+        console.error('[XRAW] Initialization error:', err);
         if (!cancelled) {
           addError('INIT_FAILED', `Initialization failed: ${err.message || err}`, 'error', true);
         }
-      }
-
-      if (!cancelled) {
-        setInitializing(false);
+      } finally {
+        // Always set initializing to false, even if there's an error
+        console.log('[XRAW] Initialization complete, setting initializing to false');
+        if (!cancelled) {
+          setInitializing(false);
+        }
       }
     }
 
