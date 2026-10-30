@@ -35,10 +35,10 @@ class CameraPreviewView @JvmOverloads constructor(
     /**
      * Set callback for when the surface is ready for camera output.
      */
-    fun setOnSurfaceReadyListener(listener: (Surface) -> Unit) {
+    fun setOnSurfaceReadyListener(listener: ((Surface) -> Unit)?) {
         onSurfaceReady = listener
         // If surface is already available, notify immediately
-        if (isSurfaceAvailable && surface != null) {
+        if (isSurfaceAvailable && surface != null && listener != null) {
             listener(surface!!)
         }
     }

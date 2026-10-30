@@ -16,6 +16,7 @@ import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import com.getcapacitor.annotation.Permission
 import com.xraw.camera.format.XRawWriter
+import com.xraw.camera.format.XRawLCCodec
 import com.xraw.camera.format.MlvWriter
 import com.xraw.camera.video.LogVideoEncoder
 import org.json.JSONArray
@@ -52,6 +53,7 @@ class XRawCameraPlugin : Plugin() {
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
     private var previewSurface: Surface? = null  // Store preview surface for manual controls
+    private var previewImageReader: ImageReader? = null  // For preview frames
     private var rawImageReader: ImageReader? = null
 
     // Camera characteristics
@@ -87,6 +89,7 @@ class XRawCameraPlugin : Plugin() {
     private var currentFocusDistance: Float? = null
     private var currentZoom: Float = 1.0f
     private var previewFrameRate: Int = 30  // Store frontend settings for frame rate
+    private var settings: JSObject? = null  // Store frontend settings
 
     // Pending call for async operations
     private val pendingOpenCall = AtomicReference<PluginCall?>(null)
@@ -147,7 +150,7 @@ class XRawCameraPlugin : Plugin() {
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
-    ): Boolean {
+    ) {
         Log.d(TAG, "handleRequestPermissionsResult: requestCode=$requestCode, permissions=${permissions.joinToString()}, grantResults=${grantResults.joinToString()}")
         
         if (requestCode == 1001) {
@@ -156,7 +159,7 @@ class XRawCameraPlugin : Plugin() {
             
             if (call == null) {
                 Log.w(TAG, "handleRequestPermissionsResult: no pending call")
-                return true  // Already handled or no pending call
+                return  // Already handled or no pending call
             }
             
             // Check if camera permission was granted
@@ -164,7 +167,7 @@ class XRawCameraPlugin : Plugin() {
             if (grantResults.isEmpty()) {
                 Log.w(TAG, "handleRequestPermissionsResult: empty grantResults")
                 call.reject("Permission request cancelled")
-                return true
+                return
             }
             
             // Find the camera permission result
@@ -184,10 +187,10 @@ class XRawCameraPlugin : Plugin() {
                 call.reject("Camera permission not found in result")
             }
             
-            return true
+            return
         }
         
-        return super.handleRequestPermissionsResult(requestCode, permissions, grantResults)
+        super.handleRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     // ==================== CAMERA ENUMERATION ====================
@@ -514,7 +517,8 @@ class XRawCameraPlugin : Plugin() {
                     applySettingsToRequest(requestBuilder)
 
                     // Use the requested frame rate if available, otherwise use default
-                    val fpsRange = when (settings?.frameRate) {
+                    val frameRate = settings?.getInt("frameRate") ?: previewFrameRate
+                    val fpsRange = when (frameRate) {
                         24 -> android.util.Range(24, 24)
                         25 -> android.util.Range(25, 25)
                         30 -> android.util.Range(30, 30)
@@ -844,7 +848,7 @@ class XRawCameraPlugin : Plugin() {
                         override fun onCaptureFailed(
                             session: CameraCaptureSession,
                             request: CaptureRequest,
-                            failure: CameraCaptureFailure
+                            failure: CameraCaptureSession.CaptureFailure
                         ) {
                             stillImageReader.close()
                             call.reject("Capture failed: reason ${failure.reason}")
