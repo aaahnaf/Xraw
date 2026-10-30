@@ -848,7 +848,7 @@ class XRawCameraPlugin : Plugin() {
                         override fun onCaptureFailed(
                             session: CameraCaptureSession,
                             request: CaptureRequest,
-                            failure: CameraCaptureSession.CaptureFailure
+                            failure: CaptureFailure
                         ) {
                             stillImageReader.close()
                             call.reject("Capture failed: reason ${failure.reason}")
