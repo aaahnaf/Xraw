@@ -21,7 +21,7 @@ export interface SensorInfo {
   colorFilterArrangement: number;
 }
 
-export type CaptureMode = 'raw' | 'log_video' | 'mlv';
+export type CaptureMode = 'raw' | 'mlv';
 
 export type RecordingResolution = 
   | '1080p_open_gate'  // 1920x1440 4:3 - Main mode
@@ -40,29 +40,6 @@ export function getResolutionDimensions(resolution: RecordingResolution): { widt
   }
 }
 
-export type LogProfile = 
-  | 'none'
-  | 'slog3'        // Sony S-Log3
-  | 'clog3'        // Canon C-Log3
-  | 'vlog'         // Panasonic V-Log
-  | 'logc'         // ARRI LogC3
-  | 'flog'         // Fujifilm F-Log
-  | 'nlog'         // Nikon N-Log
-  | 'dlog'         // DJI D-Log
-  | 'redlogfilm'   // RED REDlogFilm
-  | 'bmfilm'       // Blackmagic Film
-  | 'slog2';       // Sony S-Log2
-
-export interface LogProfileInfo {
-  id: LogProfile;
-  name: string;
-  vendor: string;
-  variant: string;
-  implemented: boolean;
-  approximate: boolean;
-  notes: string;
-}
-
 export interface CaptureSettings {
   resolution: RecordingResolution;
   frameRate: number;
@@ -74,8 +51,6 @@ export interface CaptureSettings {
   zoom: number; // 1.0 = no zoom
   // Capture mode
   mode: CaptureMode;
-  // Log video profile (only used in log_video mode)
-  logProfile: LogProfile;
   // Preview LUT (display only, does not affect captured data)
   lutEnabled: boolean;
   lutPath: string | null;

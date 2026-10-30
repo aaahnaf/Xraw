@@ -35,7 +35,6 @@ export function useCamera() {
     focusDistance: null,
     zoom: 1.0,
     mode: 'mlv',
-    logProfile: 'none',
     lutEnabled: false,
     lutPath: null,
     losslessCompression: true,
@@ -207,15 +206,7 @@ export function useCamera() {
       let result;
       const dims = getResolutionDimensions(settings.resolution);
       
-      if (settings.mode === 'log_video') {
-        // Log video mode - use MP4 encoder
-        result = await NativeBridge.startLogVideoRecording({
-          width: dims.width,
-          height: dims.height,
-          fps: settings.frameRate,
-          logProfile: settings.logProfile,
-        });
-      } else if (settings.mode === 'mlv') {
+      if (settings.mode === 'mlv') {
         // MLV mode - use MLV writer
         result = await NativeBridge.startMlvRecording({
           width: dims.width,
@@ -270,9 +261,7 @@ export function useCamera() {
     try {
       let result;
       
-      if (settings.mode === 'log_video') {
-        result = await NativeBridge.stopLogVideoRecording();
-      } else if (settings.mode === 'mlv') {
+      if (settings.mode === 'mlv') {
         result = await NativeBridge.stopMlvRecording();
       } else {
         result = await NativeBridge.stopRecording();

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { CaptureSettings, RecordingState, CameraInfo, LogProfile } from '../types';
-import { getProfileInfo, getAvailableProfiles } from '../utils/log-profiles';
+import type { CaptureSettings, RecordingState, CameraInfo } from '../types';
 import { getResolutionDimensions } from '../types';
 
 interface Props {
@@ -81,11 +80,8 @@ export function CameraScreen({
   const getModeLabel = () => {
     if (settings.mode === 'raw') {
       return settings.losslessCompression ? 'RAW LC' : 'RAW';
-    } else if (settings.mode === 'mlv') {
-      return 'MLV';
     } else {
-      const profile = getProfileInfo(settings.logProfile);
-      return profile.name.toUpperCase();
+      return 'MLV';
     }
   };
 
@@ -134,7 +130,7 @@ export function CameraScreen({
                 {/* Mode Selector */}
                 <button
                   onClick={() => {
-                    const modes: Array<'raw' | 'mlv' | 'log_video'> = ['raw', 'mlv', 'log_video'];
+                    const modes: Array<'raw' | 'mlv'> = ['raw', 'mlv'];
                     const currentIndex = modes.indexOf(settings.mode);
                     const nextIndex = (currentIndex + 1) % modes.length;
                     onUpdateSetting('mode', modes[nextIndex]);
@@ -196,16 +192,6 @@ export function CameraScreen({
               </div>
             </div>
           </div>
-
-          {/* Log Profile Warning - Only in log_video mode */}
-          {settings.mode === 'log_video' && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40">
-              <div className="px-4 py-2 rounded bg-red-900/80 border border-red-500 text-xs font-mono text-red-200 text-center">
-                ⚠ Log profiles NOT implemented<br />
-                <span className="text-red-300 text-[10px]">Output is standard Rec.709</span>
-              </div>
-            </div>
-          )}
 
           {/* Left Exposure Controls */}
           <div className="absolute left-3 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-2">
@@ -418,8 +404,7 @@ export function CameraScreen({
               {/* RAW Still */}
               <button
                 onClick={onCaptureStill}
-                disabled={settings.mode === 'log_video'}
-                className="w-14 h-14 rounded-full border-2 border-white/40 flex items-center justify-center hover:border-white/70 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="w-14 h-14 rounded-full border-2 border-white/40 flex items-center justify-center hover:border-white/70 active:scale-95 transition-all"
               >
                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                   <span className="text-[9px] font-mono font-bold text-white/90">RAW</span>

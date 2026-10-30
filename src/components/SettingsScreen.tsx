@@ -48,20 +48,7 @@ export function SettingsScreen({ settings, onUpdateSetting, onBack }: Props) {
               }}
             >
               <div className="text-sm font-medium text-white">MLV</div>
-              <div className="text-xs mt-0.5 text-red-400">⚠ NOT IMPLEMENTED - Recording is a stub</div>
               <div className="text-xs mt-0.5 text-white/60">Magic Lantern Video format (.mlv)</div>
-            </button>
-            
-            <button
-              onClick={() => onUpdateSetting('mode', 'log_video')}
-              className="w-full text-left px-4 py-3 rounded-lg transition-all bg-neutral-900 hover:bg-neutral-800"
-              style={{
-                border: `1px solid ${settings.mode === 'log_video' ? 'rgba(212, 165, 116, 0.6)' : 'rgba(255, 255, 255, 0.1)'}`
-              }}
-            >
-              <div className="text-sm font-medium text-white">LOG VIDEO</div>
-              <div className="text-xs mt-0.5 text-red-400">⚠ NOT IMPLEMENTED - Recording is a stub</div>
-              <div className="text-xs mt-0.5 text-white/60">Output would be Rec.709, not log</div>
             </button>
           </div>
         </section>

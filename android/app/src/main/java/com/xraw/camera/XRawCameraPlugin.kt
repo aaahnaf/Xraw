@@ -36,8 +36,7 @@ import java.util.concurrent.atomic.AtomicReference
 @CapacitorPlugin(
     name = "XRawCamera",
     permissions = [
-        Permission(strings = [Manifest.permission.CAMERA], alias = "camera"),
-        Permission(strings = [Manifest.permission.RECORD_AUDIO], alias = "microphone")
+        Permission(strings = [Manifest.permission.CAMERA], alias = "camera")
     ]
 )
 class XRawCameraPlugin : Plugin() {
@@ -87,7 +86,7 @@ class XRawCameraPlugin : Plugin() {
     private var currentWhiteBalance: Int? = null
     private var currentFocusDistance: Float? = null
     private var currentZoom: Float = 1.0f
-    private var settings: dynamic = null  // Store frontend settings for frame rate
+    private var previewFrameRate: Int = 30  // Store frontend settings for frame rate
 
     // Pending call for async operations
     private val pendingOpenCall = AtomicReference<PluginCall?>(null)
@@ -108,28 +107,27 @@ class XRawCameraPlugin : Plugin() {
     override fun checkPermissions(call: PluginCall) {
         val result = JSObject()
         val hasCamera = context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        val hasStorage = if (Build.VERSION.SDK_INT >= 33) {
-            context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-        } else {
-            context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-        }
 
         result.put("camera", if (hasCamera) "granted" else "prompt")
-        result.put("storage", if (hasStorage) "granted" else "prompt")
+        Log.d(TAG, "checkPermissions: camera=${if (hasCamera) "granted" else "prompt"}")
         call.resolve(result)
     }
 
     @PluginMethod
     override fun requestPermissions(call: PluginCall) {
+        Log.d(TAG, "requestPermissions called")
+        
         // Only request camera permission - it's the only one we actually need
-        // Storage permissions are handled by scoped storage on Android 10+
         val perms = arrayOf(Manifest.permission.CAMERA)
         
         // Check if we already have permission
         val hasPermission = context.checkSelfPermission(Manifest.permission.CAMERA) == 
                            PackageManager.PERMISSION_GRANTED
         
+        Log.d(TAG, "requestPermissions: hasPermission=$hasPermission")
+        
         if (hasPermission) {
+            Log.d(TAG, "requestPermissions: already granted, resolving")
             call.resolve()
             return
         }
@@ -137,6 +135,7 @@ class XRawCameraPlugin : Plugin() {
         // Store the call for later resolution
         pendingPermissionCall = call
         
+        Log.d(TAG, "requestPermissions: requesting from activity")
         // Request permission from the activity
         activity.requestPermissions(perms, 1001)
     }
@@ -149,30 +148,39 @@ class XRawCameraPlugin : Plugin() {
         permissions: Array<out String>,
         grantResults: IntArray
     ): Boolean {
+        Log.d(TAG, "handleRequestPermissionsResult: requestCode=$requestCode, permissions=${permissions.joinToString()}, grantResults=${grantResults.joinToString()}")
+        
         if (requestCode == 1001) {
             val call = pendingPermissionCall
             pendingPermissionCall = null
             
             if (call == null) {
+                Log.w(TAG, "handleRequestPermissionsResult: no pending call")
                 return true  // Already handled or no pending call
             }
             
             // Check if camera permission was granted
             // Empty grantResults means request was cancelled
             if (grantResults.isEmpty()) {
+                Log.w(TAG, "handleRequestPermissionsResult: empty grantResults")
                 call.reject("Permission request cancelled")
                 return true
             }
             
             // Find the camera permission result
             val cameraPermissionIndex = permissions.indexOf(Manifest.permission.CAMERA)
+            Log.d(TAG, "handleRequestPermissionsResult: cameraPermissionIndex=$cameraPermissionIndex")
+            
             if (cameraPermissionIndex >= 0 && cameraPermissionIndex < grantResults.size) {
                 if (grantResults[cameraPermissionIndex] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "handleRequestPermissionsResult: camera permission granted")
                     call.resolve()
                 } else {
+                    Log.w(TAG, "handleRequestPermissionsResult: camera permission denied")
                     call.reject("Camera permission denied")
                 }
             } else {
+                Log.e(TAG, "handleRequestPermissionsResult: camera permission not found in result")
                 call.reject("Camera permission not found in result")
             }
             
@@ -1188,11 +1196,6 @@ class XRawCameraPlugin : Plugin() {
     // drainFrameQueue and restorePreviewAfterRecording are defined above
 
     @PluginMethod
-    fun startLogVideoRecording(call: PluginCall) {
-        call.reject("Log video recording not yet implemented - output would be Rec.709, not log")
-    }
-
-    @PluginMethod
     fun startMlvRecording(call: PluginCall) {
         if (isRecording.get()) {
             call.reject("Already recording")
@@ -1416,11 +1419,6 @@ class XRawCameraPlugin : Plugin() {
                 }
             }
         })
-    }
-
-    @PluginMethod
-    fun stopLogVideoRecording(call: PluginCall) {
-        call.reject("Log video recording not implemented")
     }
 
     @PluginMethod
